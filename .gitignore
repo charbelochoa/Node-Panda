@@ -1,0 +1,51 @@
+# ── Build ────────────────────────────────────────────────────────────────────
+build/
+out/
+cmake-build-*/
+*.vcxproj.user
+*.sln
+
+# ── Binarios y objetos ───────────────────────────────────────────────────────
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.obj
+*.o
+*.a
+*.so
+
+# ── CMake cache ──────────────────────────────────────────────────────────────
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+_deps/
+
+# ── Datos de usuario (notas personales) ─────────────────────────────────────
+data/notas/
+data/panda.png
+claude_context_export.txt
+
+# ── Editores / IDEs ──────────────────────────────────────────────────────────
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.aps
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+Thumbs.db
+.DS_Store
+
+# ── Dependencias descargadas por FetchContent ────────────────────────────────
+third_party/imgui/
+third_party/glfw/
+third_party/lua/
+third_party/sol2/

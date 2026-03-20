@@ -1,0 +1,7 @@
+// Recurso de icono para Node Panda (Windows)
+// MSVC compilará este archivo y vinculará el icono al ejecutable.
+
+#include <windows.h>
+
+// ID 1 = icono principal de la aplicación (usado por Windows para la miniatura)
+1 ICON "panda2.ico"
