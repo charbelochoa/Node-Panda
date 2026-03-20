@@ -126,9 +126,7 @@ std::string CompileContext(
 }
 
 
-// ============================================================================
-// ExportVaultForClaude — Exportación masiva XML optimizada para Claude
-// ============================================================================
+
 static std::string escapeXml(const std::string& src) {
     std::string out;
     out.reserve(src.size() + src.size() / 8);
@@ -153,13 +151,11 @@ VaultExportResult ExportVaultForClaude(NoteManager& noteManager) {
         return result;
     }
 
-    // ── Construir el XML ────────────────────────────────────────────────────
     std::ostringstream xml;
 
     xml << "<documents>\n";
 
     int index = 1;
-    // Ordenar las notas alfabéticamente por ID para exportación determinista
     std::vector<std::pair<std::string, const Note*>> sorted;
     sorted.reserve(allNotes.size());
     for (const auto& [id, note] : allNotes) {
@@ -171,7 +167,6 @@ VaultExportResult ExportVaultForClaude(NoteManager& noteManager) {
     for (const auto& [id, notePtr] : sorted) {
         const Note& note = *notePtr;
 
-        // Reconstruir el contenido completo incluyendo YAML frontmatter
         std::string fullContent;
         if (!note.frontmatter.empty()) {
             fullContent += "---\n";
@@ -182,7 +177,6 @@ VaultExportResult ExportVaultForClaude(NoteManager& noteManager) {
         }
         fullContent += note.content;
 
-        // Nombre del archivo fuente
         std::string filename = note.filepath.filename().string();
         if (filename.empty()) filename = id + ".md";
 
@@ -203,11 +197,9 @@ VaultExportResult ExportVaultForClaude(NoteManager& noteManager) {
     result.noteCount  = index - 1;
     result.totalBytes = xmlStr.size();
 
-    // ── Escribir a archivo junto al directorio de notas ─────────────────────
     namespace fs = std::filesystem;
     fs::path outputPath;
 
-    // Guardar en el directorio de notas (accesible al usuario)
     fs::path notesDir = noteManager.getNotesDirectory();
     if (fs::exists(notesDir) && fs::is_directory(notesDir)) {
         outputPath = notesDir / "claude_context_export.txt";
@@ -235,4 +227,4 @@ VaultExportResult ExportVaultForClaude(NoteManager& noteManager) {
     return result;
 }
 
-} // namespace nodepanda 
+} 

@@ -731,7 +731,7 @@ void App::renderHubBienvenida() {
     }
 
     {
-        const char* t2 = "Central de Conocimiento Orbit/Aluranee";
+        const char* t2 = "Central de Conocimiento";
         ImVec2 t2sz = ImGui::CalcTextSize(t2);
         ImGui::SetCursorPos(ImVec2((winW - t2sz.x) * 0.5f, cy));
         ImGui::TextColored(ImVec4(0.45f, 0.46f, 0.60f, 1.0f), "%s", t2);
