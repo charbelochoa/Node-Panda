@@ -1,6 +1,6 @@
 # Node Panda
 
-Gestor personal de notas enlazadas con grafo visual interactivo, motor de conocimiento y API local. Construido desde cero en C++ con Dear ImGui y OpenGL.
+A personal linked-notes manager featuring an interactive visual graph, a knowledge engine, and a local API. Built entirely from scratch in C++ using Dear ImGui and OpenGL.
 
 ![Node Panda](data/panda.png)
 
@@ -9,147 +9,147 @@ Gestor personal de notas enlazadas con grafo visual interactivo, motor de conoci
 ## Changelog
 
 ### v1.1.0 — Knowledge Engine Update
-- **Motor de Consultas** — queries tipo SQL sobre el vault (`QUERY notas WHERE tipo = "proyecto" AND enlaces > 3`)
-- **Control de Versiones Git** — historial automático de cada nota, diff viewer, restauración de versiones
-- **Análisis de Grafo** — PageRank, Betweenness Centrality y detección de comunidades sobre el grafo de notas
-- **Repetición Espaciada (SRS)** — algoritmo SM-2 integrado directamente en las notas para revisión activa
-- **API REST local** — servidor HTTP en `localhost:8042` para integrar Node Panda con scripts y herramientas externas
-- **Sistema de Plugins** — motor Lua 5.4 con sandbox, lifecycle hooks, bindings de ImGui y 8 plugins incluidos
+- **Query Engine** — SQL-like queries for your vault (`QUERY notas WHERE tipo = "proyecto" AND enlaces > 3`).
+- **Git Version Control** — Automatic history tracking for every note, inline diff viewer, and instant version rollback.
+- **Graph Analytics** — PageRank, Betweenness Centrality, and community detection running right on your note graph.
+- **Spaced Repetition (SRS)** — Built-in SM-2 algorithm directly in your notes for active recall.
+- **Local REST API** — HTTP server running on `localhost:8042` so you can hook Node Panda up to your own scripts and external tools.
+- **Plugin System** — Lua 5.4 engine with a security sandbox, lifecycle hooks, ImGui bindings, and 8 bundled plugins out of the box.
 
-### v1.0.0 — Lanzamiento inicial
-- Notas en Markdown con frontmatter YAML
-- Grafo de nodos interactivo con force layout y Barnes-Hut
-- Editor con preview de Markdown renderizado
-- Backlinks automáticos
-- Motor de Memoria semántica TF-IDF
-- File Watcher en tiempo real
-- Exportar contexto para Claude (XML)
-- Scripting Lua con consola integrada
-- Hub de bienvenida
+### v1.0.0 — Initial Release
+- Markdown notes with YAML frontmatter.
+- Interactive node graph using a Barnes-Hut force layout.
+- Editor with live Markdown preview.
+- Automatic backlinks.
+- TF-IDF Semantic Memory engine.
+- Real-time disk file watcher.
+- Context export tailored for Claude (XML).
+- Integrated Lua scripting console.
+- Welcome Hub.
 
 ---
 
-## Características
+## Features Breakdown
 
-### Core
-- **Notas en Markdown** con frontmatter YAML (tipo, aliases, tags)
-- **Grafo de nodos interactivo** con simulación de fuerzas Barnes-Hut
-- **Coloreado por tipo**: proyecto (cyan), concepto (purple), referencia (amber), diario (verde), tarea (coral)
-- **Editor con preview** de Markdown renderizado
-- **Backlinks automáticos** — ve qué notas enlazan a la actual
-- **Motor de Memoria TF-IDF** — búsqueda semántica y sugerencia de enlaces
-- **File Watcher** — detecta cambios en disco en tiempo real
-- **Exportar contexto** estructurado para Claude (XML)
-- **Scripting Lua** — consola integrada con acceso completo al vault
+### The Core Stuff
+- **Markdown Notes** powered by YAML frontmatter (track types, aliases, tags).
+- **Interactive Node Graph** running a Barnes-Hut physics simulation.
+- **Color-coded by type**: projects (cyan), concepts (purple), references (amber), journal (green), tasks (coral).
+- **Split Editor** showing your raw markdown and a rendered preview.
+- **Auto-Backlinks** — instantly see which notes link back to what you're reading.
+- **TF-IDF Memory Engine** — handles semantic search and smart link suggestions.
+- **File Watcher** — edits made outside the app update instantly in the UI.
+- **Claude Export** — dumps structured context in XML for easy AI prompting.
+- **Lua Scripting** — full vault access right from the built-in console.
 
-### v1.1.0 — Nuevas funcionalidades
+### v1.1.0 — The New Stuff
 
-#### Motor de Consultas
-Consultas estructuradas sobre el vault con sintaxis propia:
-```
+#### Query Engine
+Run structured queries across your entire vault using a custom syntax:
+` ` `
 QUERY notas WHERE tipo = "proyecto" AND enlaces > 3 SORT palabras DESC LIMIT 10
 QUERY notas WHERE tags CONTIENE "ia"
 QUERY notas WHERE palabras > 500 SORT fecha DESC
-```
-Campos disponibles: `tipo`, `palabras`, `caracteres`, `enlaces`, `conexiones`, `fecha`, o cualquier clave de frontmatter.
+` ` `
+You can query by: `tipo` (type), `palabras` (word count), `caracteres` (chars), `enlaces` (links), `conexiones` (connections), `fecha` (date), or literally any custom key in your frontmatter.
 
-#### Control de Versiones Git
-- Auto-commit en cada guardado con timestamp
-- Historial completo de cada nota
-- Diff viewer inline (verde = añadido, rojo = eliminado)
-- Restauración de cualquier versión anterior con un clic
-- Requiere Git instalado en el sistema (`git` en el PATH)
+#### Git Version Control
+- Auto-commits with a timestamp every time you save.
+- View the complete history of any specific note.
+- Inline diff viewer (green = added, red = removed).
+- One-click restore to any older version.
+- *Note: Requires Git installed on your machine (`git` in your system PATH).*
 
-#### Análisis de Grafo
-- **PageRank** — identifica las notas más importantes por estructura de enlaces
-- **Betweenness Centrality** — detecta notas que actúan como puentes entre áreas de conocimiento
-- **Detección de comunidades** — agrupa notas en clusters temáticos automáticamente (Label Propagation)
+#### Graph Analytics
+- **PageRank** — finds the most heavily referenced/important notes in your vault.
+- **Betweenness Centrality** — spots the "bridge" notes connecting different knowledge domains.
+- **Community Detection** — automatically groups related notes into thematic clusters using Label Propagation.
 
-#### Repetición Espaciada (SRS)
-- Algoritmo SM-2 (el mismo que usa Anki)
-- Cola de revisión diaria integrada en el vault
-- Intervalos calculados automáticamente según dificultad (Fácil / Bien / Difícil / De Nuevo)
-- Datos almacenados en el frontmatter de cada nota (`srs_interval`, `srs_ease`, `srs_next`)
+#### Spaced Repetition (SRS)
+- Powered by the SM-2 algorithm (the exact same one Anki uses).
+- Daily review queue built right into your vault.
+- Auto-calculates your next review intervals based on difficulty (Easy / Good / Hard / Again).
+- Saves the SRS data cleanly into each note's frontmatter (`srs_interval`, `srs_ease`, `srs_next`).
 
-#### API REST local
-Servidor HTTP en `localhost:8042` — solo accesible desde tu propia máquina:
+#### Local REST API
+A lightweight HTTP server hosted on `localhost:8042` — accessible only from your local machine:
 
-| Endpoint | Descripción |
+| Endpoint | What it does |
 |---|---|
-| `GET /api/notas` | Lista todas las notas con metadatos |
-| `GET /api/notas/{id}` | Contenido completo de una nota |
-| `GET /api/grafo` | Estructura del grafo (nodos + aristas) |
-| `GET /api/memoria/buscar?q=...&n=5` | Búsqueda semántica TF-IDF |
-| `GET /api/stats` | Estadísticas del vault |
+| `GET /api/notas` | Lists all notes + metadata |
+| `GET /api/notas/{id}` | Grabs the full content of a specific note |
+| `GET /api/grafo` | Returns the graph structure (nodes + edges) |
+| `GET /api/memoria/buscar?q=...&n=5` | TF-IDF semantic search |
+| `GET /api/stats` | Vault statistics |
 
-#### Sistema de Plugins (Lua 5.4)
-Motor de extensiones con sandbox de seguridad. Plugins incluidos:
+#### Plugin System (Lua 5.4)
+Easily extend the app. Runs in a secure sandbox. Here's what's included:
 
-| Plugin | Descripción |
+| Plugin | What it does |
 |---|---|
-| `daily_notes` | Crea y abre nota diaria automáticamente |
-| `stats_dashboard` | Estadísticas del vault en consola Lua |
-| `templates` | 5 plantillas predefinidas (Reunión, Proyecto, Concepto, Tarea, Diario) |
-| `tag_browser` | Panel para explorar y filtrar notas por tags |
-| `word_count` | Estadísticas de la nota activa (palabras, tiempo de lectura) |
-| `auto_linker` | Sugiere enlaces basados en similitud TF-IDF |
-| `graph_exporter` | Exporta el grafo a DOT (Graphviz) y JSON |
-| `theme_switcher` | 5 temas: Default, Nord, Catppuccin, Gruvbox Dark, Dracula |
+| `daily_notes` | Auto-creates and opens your daily note |
+| `stats_dashboard` | Prints vault stats right into the Lua console |
+| `templates` | 5 preset templates (Meeting, Project, Concept, Task, Journal) |
+| `tag_browser` | A UI panel to browse and filter notes by tags |
+| `word_count` | Live stats for your active note (word count, reading time) |
+| `auto_linker` | Recommends links based on TF-IDF similarity |
+| `graph_exporter` | Dumps your graph to DOT (Graphviz) or JSON |
+| `theme_switcher` | 5 color themes: Default, Nord, Catppuccin, Gruvbox Dark, Dracula |
 
 ---
 
-## Requisitos
+## Requirements
 
-| Herramienta | Versión mínima | Descarga |
+| Tool | Min Version | Get it here |
 |---|---|---|
-| **Visual Studio** (con BuildTools C++) | 2019 o 2022 | https://visualstudio.microsoft.com/downloads/ |
+| **Visual Studio** (w/ C++ BuildTools) | 2019 or 2022 | https://visualstudio.microsoft.com/downloads/ |
 | **CMake** | 3.14+ | https://cmake.org/download/ |
-| **Git** | cualquier versión reciente | https://git-scm.com/ |
-| **Windows** | 10 / 11 (64-bit) | — |
+| **Git** | Any recent version | https://git-scm.com/ |
+| **OS** | Windows 10 / 11 (64-bit) | — |
 
-> **Git en el PATH:** para que el Control de Versiones funcione, Git debe estar disponible en la terminal (`git --version` debe responder). Si no lo está, reinstala Git marcando *"Add Git to the system PATH"*.
+> **Heads up on Git:** For the Version Control features to work, Git needs to be globally accessible in your terminal (running `git --version` should print the version). If it doesn't, reinstall Git and make sure to check the *"Add Git to the system PATH"* box.
 
 ---
 
-## Instalación desde cero
+## Building from Scratch
 
-### 1. Clonar el repositorio
+### 1. Clone the repo
 
 ```bash
-git clone https://github.com/charbelochoa/NodePanda.git
+git clone [https://github.com/charbelochoa/NodePanda.git](https://github.com/charbelochoa/NodePanda.git)
 cd NodePanda
 ```
 
-### 2. Crear la carpeta de build
+### 2. Set up the build directory
 
 ```bash
 mkdir build
 cd build
 ```
 
-### 3. Generar el proyecto con CMake
+### 3. Generate the CMake project
 
-Abre una **Developer PowerShell for VS 2022** — búscala en el menú Inicio — y ejecuta desde dentro de la carpeta `build`:
+Open up a **Developer PowerShell for VS 2022** (just search for it in your Windows Start menu), make sure you are inside the `build` folder, and run:
 
 ```powershell
 cmake .. -G "Visual Studio 17 2022"
 ```
 
-> Si usas Visual Studio **2019**:
+> If you are still rocking Visual Studio **2019**, run this instead:
 > ```powershell
 > cmake .. -G "Visual Studio 16 2019"
 > ```
-> CMake descargará automáticamente GLFW, ImGui y Lua via FetchContent. Requiere conexión a internet en el primer build.
+> *Note: CMake will automatically download GLFW, ImGui, and Lua via FetchContent. You'll need internet access for this first run.*
 
-### 4. Compilar
+### 4. Compile
 
 ```powershell
 cmake --build . --config Release
 ```
 
-La compilación tarda 1–3 minutos la primera vez.
+Give it about 1–3 minutes the first time you compile.
 
-### 5. Ejecutar
+### 5. Run it
 
 ```powershell
 cd Release
@@ -158,16 +158,16 @@ cd Release
 
 ---
 
-## Estructura del proyecto
+## Project Structure
 
-```
+```text
 NodePanda/
 ├── CMakeLists.txt
-├── PLUGIN_API.md               # Documentación de la API de plugins
+├── PLUGIN_API.md               # Full docs for the Plugin API
 ├── data/
 │   ├── panda.png
-│   ├── notas/                  # Tus notas (Markdown)
-│   └── plugins/                # Plugins Lua
+│   ├── notas/                  # Your actual notes (Markdown)
+│   └── plugins/                # Lua Plugins live here
 │       ├── daily_notes/
 │       ├── templates/
 │       ├── tag_browser/
@@ -175,72 +175,73 @@ NodePanda/
 │       ├── auto_linker/
 │       ├── graph_exporter/
 │       └── theme_switcher/
-├── include/                    # Headers
+├── include/                    # Header files
 │   ├── app.h
-│   ├── query_engine.h          # Motor de consultas
-│   ├── graph_analytics.h       # PageRank + clustering
-│   ├── srs_engine.h            # Repetición espaciada SM-2
-│   ├── git_manager.h           # Control de versiones
-│   ├── http_server.h           # API REST local
-│   ├── plugin_manager.h        # Sistema de plugins
+│   ├── query_engine.h          # Handles the SQL-like queries
+│   ├── graph_analytics.h       # PageRank & clustering logic
+│   ├── srs_engine.h            # Spaced repetition math (SM-2)
+│   ├── git_manager.h           # Git bindings
+│   ├── http_server.h           # Local REST API
+│   ├── plugin_manager.h        # Lua integration
 │   └── ...
-├── src/                        # Implementaciones
+├── src/                        # C++ Source implementations
 └── third_party/
     └── stb_image.h
 ```
 
 ---
 
-## Uso básico
+## How to use it
 
-### Crear y enlazar notas
-Usa el botón **+ Nota** en el Explorador. Enlaza notas con la sintaxis `[[NombreDeLaNota]]`. El grafo se actualiza en tiempo real.
+### Creating and Linking Notes
+Hit the **+ Nota** button in the Explorer. Link notes together using bracket syntax `[[NameOfYourNote]]`. The graph updates in real-time as you type.
 
 ### Frontmatter
+Add metadata to the top of your markdown files like this:
 ```yaml
 ---
 tipo: proyecto
-aliases: MiProyecto
-tags: diseño, web
+aliases: MyProject
+tags: design, web
 ---
 ```
-Tipos disponibles: `proyecto`, `concepto`, `referencia`, `diario`, `tarea`.
+Available types out of the box: `proyecto`, `concepto`, `referencia`, `diario`, `tarea`.
 
-### Motor de Consultas
-Abre el panel "Motor de Consultas" (tab inferior) y escribe queries:
-```
+### Query Engine
+Open the "Motor de Consultas" (Query Engine) tab at the bottom and try running:
+```text
 QUERY notas WHERE tipo = "proyecto" AND palabras > 200
 QUERY notas WHERE enlaces = 0
 ```
 
-### Control de Versiones
-El historial es automático. Usa el panel "Control de Versiones" para ver cambios, comparar versiones y restaurar.
+### Version Control
+History is tracked automatically behind the scenes. Just pop open the "Control de Versiones" panel to diff changes or rollback if you mess something up.
 
-### API REST
-Con la app abierta, desde el navegador o una terminal:
-```
+### REST API
+While the app is running, you can hit these from your browser or terminal:
+```text
 http://localhost:8042/api/stats
 http://localhost:8042/api/notas
 ```
 
 ### Plugins
-Los plugins se ubican en `data/plugins/`. Cada uno es una carpeta con `manifest.json` y `plugin.lua`. Ver [PLUGIN_API.md](PLUGIN_API.md) para la documentación completa.
+Drop plugins into `data/plugins/`. Every plugin needs its own folder containing a `manifest.json` and a `plugin.lua` file. Check out [PLUGIN_API.md](PLUGIN_API.md) to see how to build your own.
 
-### Grafo de nodos
-- **Scroll** → zoom
-- **Click medio + arrastrar** → pan
-- **Click en un nodo** → selecciona esa nota
-- **Menú Herramientas → Recalcular Analíticas** → PageRank y comunidades
+### Navigating the Graph
+- **Scroll wheel** → Zoom
+- **Middle-click + drag** → Pan around
+- **Left-click a node** → Opens that note in the editor
+- **Tools → Recalculate Analytics** → Re-runs PageRank and community clustering
 
 ---
 
-## Problemas frecuentes
+## Troubleshooting
 
-**`cmake` no se reconoce**
-Reinstala CMake desde https://cmake.org/download/ marcando *"Add CMake to the system PATH"*.
+**`cmake` is not recognized**
+You need to install CMake from https://cmake.org/download/ and check the *"Add CMake to the system PATH"* box during installation.
 
-**Error de generador al rehacer cmake**
-Si ya existe una carpeta `build` de un build anterior, bórrala y vuélvela a crear:
+**Generator error when re-running cmake**
+If you already have an old `build` folder and things are getting tangled, just nuke it and start fresh:
 ```powershell
 cd ..
 Remove-Item -Recurse -Force build
@@ -249,36 +250,35 @@ cd build
 cmake .. -G "Visual Studio 17 2022"
 ```
 
-**El Control de Versiones no aparece activo**
-Verifica que `git --version` funciona en tu terminal. Si no, instala Git desde https://git-scm.com marcando *"Add Git to PATH"*.
+**Version Control says it's inactive**
+Make sure `git --version` actually works in your terminal. If it throws an error, install Git from https://git-scm.com and make sure you add it to your PATH.
 
-**El servidor API no responde**
-Verifica en el panel "Servidor API" que el estado sea "Activo". Si no arrancó automáticamente, usa **Herramientas → Iniciar Servidor API**.
+**The API server isn't responding**
+Check the "API Server" panel inside the app and make sure the status is "Active". If it didn't boot up automatically, go to **Tools → Start API Server**.
 
-**El grafo no se actualiza**
-Ve a **Archivo → Reescanear Notas**.
+**The graph isn't updating**
+Sometimes it needs a manual kick. Go to **File → Rescan Notes**.
 
 ---
 
-## Dependencias (gestionadas automáticamente por CMake)
+## Dependencies (Handled automatically by CMake)
 
-| Librería | Versión | Propósito |
+| Library | Version | What it does |
 |---|---|---|
-| [Dear ImGui](https://github.com/ocornut/imgui) | v1.90.1-docking | Interfaz gráfica |
-| [GLFW](https://github.com/glfw/glfw) | 3.3.8 | Ventana y contexto OpenGL |
-| [Lua](https://www.lua.org) | 5.4.6 | Motor de scripting y plugins |
-| [sol2](https://github.com/ThePhD/sol2) | v3.3.0 | Bindings C++ ↔ Lua |
-| [stb_image](https://github.com/nothings/stb) | — | Carga de texturas PNG |
-| OpenGL | sistema | Renderizado |
-| comdlg32 + ws2_32 | sistema (Windows) | Diálogos nativos + sockets |
+| [Dear ImGui](https://github.com/ocornut/imgui) | v1.90.1-docking | The whole UI |
+| [GLFW](https://github.com/glfw/glfw) | 3.3.8 | Window management & OpenGL context |
+| [Lua](https://www.lua.org) | 5.4.6 | Scripting and plugins |
+| [sol2](https://github.com/ThePhD/sol2) | v3.3.0 | Binds the C++ backend to Lua |
+| [stb_image](https://github.com/nothings/stb) | — | Loading PNG textures |
+| OpenGL | System | Rendering backend |
+| comdlg32 + ws2_32 | System (Win) | Native file dialogs + network sockets |
 
 ---
 
-## Licencia
+## License
 
-Copyright (c) 2026 Charbel Ochoa 
-
+Copyright (c) 2026 Charbel Ochoa.  
 All rights reserved.
 
-Este proyecto es personal/educativo. 
-No se permite el uso, copia, modificación o distribución del código sin permiso explícito del autor.
+This is a personal/educational project.  
+Use, copying, modification, or distribution of this code without explicit permission from the author is strictly prohibited.
