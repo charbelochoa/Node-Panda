@@ -1,4 +1,3 @@
-
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -28,7 +27,7 @@ const CachedTexture* ImageCache::loadTexture(const std::string& filepath) {
     }
 
     int width, height, channels;
-    unsigned char* data = stbi_load(filepath.c_str(), &width, &height, &channels, 4); 
+    unsigned char* data = stbi_load(filepath.c_str(), &width, &height, &channels, 4);
     if (!data) {
         return nullptr;
     }
@@ -70,4 +69,4 @@ bool ImageCache::isSupportedImage(const std::string& extension) {
     return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".gif";
 }
 
-} 
+}
