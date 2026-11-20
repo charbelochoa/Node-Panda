@@ -10,12 +10,11 @@ void QueryPanel::render(App& app) {
     ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
 
     if (ImGui::Begin("Motor de Consultas", nullptr, ImGuiWindowFlags_HorizontalScrollbar)) {
-        // Query input
+
         ImGui::TextWrapped("Ingrese una consulta Dataview:");
         ImGui::InputTextMultiline("##query", m_queryBuffer, sizeof(m_queryBuffer),
             ImVec2(-1.0f, 100.0f), ImGuiInputTextFlags_AllowTabInput);
 
-        // Execute button
         if (ImGui::Button("Ejecutar")) {
             executeQuery(app);
         }
@@ -30,17 +29,14 @@ void QueryPanel::render(App& app) {
             m_selectedResultIndex = -1;
         }
 
-        // Error display
         if (!m_errorMsg.empty()) {
             ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Error: %s", m_errorMsg.c_str());
         }
 
-        // Examples
         if (ImGui::CollapsingHeader("Ejemplos", ImGuiTreeNodeFlags_DefaultOpen)) {
             displayExamples();
         }
 
-        // Results
         if (m_hasResults) {
             ImGui::Separator();
             ImGui::Text("Resultados (%d):", m_resultCount);
@@ -54,7 +50,6 @@ void QueryPanel::render(App& app) {
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
 
-                    // ID cell - clickable
                     ImGui::PushID(i);
                     if (ImGui::Selectable(m_results[i].first.c_str(), m_selectedResultIndex == i,
                         ImGuiSelectableFlags_SpanAllColumns)) {
@@ -141,4 +136,4 @@ std::string QueryPanel::formatResultLine(const std::string& id, const std::strin
     return oss.str();
 }
 
-}  // namespace nodepanda
+}
