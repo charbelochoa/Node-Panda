@@ -16,9 +16,12 @@ typedef int SOCKET;
 
 #include "http_server.h"
 #include "app.h"
+#include "crypto_engine.h"
 #include "mobile_bridge.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <iomanip>
 #include <sstream>
 
@@ -131,13 +134,60 @@ void HttpServer::serverLoop() {
 
         std::string request;
         char buffer[8192];
-        int bytesRead = ::recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
-        if (bytesRead > 0) {
-            buffer[bytesRead] = '\0';
-            request.assign(buffer, static_cast<size_t>(bytesRead));
+        constexpr size_t kMaxHttpRequestBytes = 1048576;
+        size_t headerEnd = std::string::npos;
+        size_t expectedTotal = 0;
+        bool payloadTooLarge = false;
 
+        while (true) {
+            int bytesRead = ::recv(clientSocket, buffer, sizeof(buffer), 0);
+            if (bytesRead <= 0) break;
+            if (request.size() + static_cast<size_t>(bytesRead) > kMaxHttpRequestBytes) {
+                payloadTooLarge = true;
+                break;
+            }
+            request.append(buffer, static_cast<size_t>(bytesRead));
+            if (headerEnd == std::string::npos) {
+                headerEnd = request.find("\r\n\r\n");
+                if (headerEnd != std::string::npos) {
+                    size_t contentLen = 0;
+                    std::string lowerHdr = request.substr(0, headerEnd);
+                    std::transform(lowerHdr.begin(), lowerHdr.end(), lowerHdr.begin(),
+                                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                    size_t clPos = lowerHdr.find("content-length:");
+                    if (clPos != std::string::npos) {
+                        size_t lineEnd = lowerHdr.find("\r\n", clPos);
+                        std::string val = lowerHdr.substr(clPos + 15,
+                            lineEnd == std::string::npos ? std::string::npos : lineEnd - (clPos + 15));
+                        try {
+                            long long parsed = std::stoll(val);
+                            if (parsed > 0) contentLen = static_cast<size_t>(parsed);
+                        } catch (...) {}
+                    }
+                    expectedTotal = headerEnd + 4 + contentLen;
+                    if (expectedTotal > kMaxHttpRequestBytes) {
+                        payloadTooLarge = true;
+                        break;
+                    }
+                }
+            }
+            if (headerEnd != std::string::npos && request.size() >= expectedTotal) {
+                break;
+            }
+        }
+
+        if (payloadTooLarge) {
+            std::string response = httpResponse(413, "{\"error\":\"Payload too large\"}");
+            size_t totalSent = 0;
+            while (totalSent < response.length()) {
+                int sent = ::send(clientSocket, response.c_str() + totalSent,
+                                  static_cast<int>(response.length() - totalSent), 0);
+                if (sent <= 0) break;
+                totalSent += static_cast<size_t>(sent);
+            }
+        } else if (!request.empty()) {
             size_t firstSpace = request.find(' ');
-            size_t secondSpace = request.find(' ', firstSpace + 1);
+            size_t secondSpace = (firstSpace != std::string::npos) ? request.find(' ', firstSpace + 1) : std::string::npos;
             if (firstSpace != std::string::npos && secondSpace != std::string::npos) {
                 std::string method = request.substr(0, firstSpace);
                 std::string path = request.substr(firstSpace + 1, secondSpace - firstSpace - 1);
@@ -216,13 +266,39 @@ std::string HttpServer::extractJsonString(const std::string& json, const std::st
 
 std::string HttpServer::handleRequest(const std::string& method, const std::string& path,
                                       const std::string& headers, const std::string& body) {
-    (void)headers;
     if (method == "OPTIONS") {
         return httpResponse(200, "{}");
     }
 
     size_t queryPos = path.find('?');
     std::string pathOnly = (queryPos != std::string::npos) ? path.substr(0, queryPos) : path;
+
+    const char* envToken = std::getenv("NODEPANDA_API_TOKEN");
+    if (envToken && envToken[0] != '\0' &&
+        pathOnly.rfind("/api/", 0) == 0 &&
+        pathOnly != "/api/health" &&
+        pathOnly.rfind("/api/auth/", 0) != 0) {
+        std::string lowerHdr = headers;
+        std::transform(lowerHdr.begin(), lowerHdr.end(), lowerHdr.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        std::string provided;
+        size_t authPos = lowerHdr.find("authorization:");
+        if (authPos != std::string::npos) {
+            size_t lineEnd = headers.find("\r\n", authPos);
+            std::string val = headers.substr(authPos + 14,
+                lineEnd == std::string::npos ? std::string::npos : lineEnd - (authPos + 14));
+            size_t first = val.find_first_not_of(" \t");
+            if (first != std::string::npos) val = val.substr(first);
+            if (val.size() >= 7 && (val.rfind("Bearer ", 0) == 0 || val.rfind("bearer ", 0) == 0)) {
+                provided = val.substr(7);
+            }
+            size_t last = provided.find_last_not_of(" \t\r\n");
+            if (last != std::string::npos) provided = provided.substr(0, last + 1);
+        }
+        if (!CryptoEngine::secureEquals(provided, std::string(envToken))) {
+            return httpResponse(401, "{\"error\":\"Unauthorized\"}");
+        }
+    }
 
     if (method == "GET") {
         if (pathOnly == "/" || pathOnly == "/mobile") {
@@ -746,12 +822,16 @@ std::string HttpServer::httpResponse(int code, const std::string& body, const st
     else if (code == 401) statusText = "Unauthorized";
     else if (code == 404) statusText = "Not Found";
     else if (code == 405) statusText = "Method Not Allowed";
+    else if (code == 413) statusText = "Payload Too Large";
     else if (code == 500) statusText = "Internal Server Error";
 
     std::ostringstream oss;
     oss << "HTTP/1.1 " << code << " " << statusText << "\r\n"
         << "Content-Type: " << contentType << "; charset=utf-8\r\n"
         << "Content-Length: " << body.length() << "\r\n"
+        << "X-Content-Type-Options: nosniff\r\n"
+        << "X-Frame-Options: SAMEORIGIN\r\n"
+        << "Referrer-Policy: no-referrer\r\n"
         << "Access-Control-Allow-Origin: *\r\n"
         << "Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS\r\n"
         << "Access-Control-Allow-Headers: Content-Type, Authorization\r\n"
