@@ -114,13 +114,17 @@ void CommandPanel::render(App& app) {
         recalcStats(app);
     }
 
-    ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f), "Centro de Mando");
-    ImGui::SameLine();
-    ImGui::TextColored(ImVec4(0.35f, 0.37f, 0.48f, 1.0f), "  Node Panda");
+    ImGui::TextColored(ImVec4(0.15f, 0.49f, 0.88f, 1.0f), "Centro de Mando");
     ImGui::Spacing();
-    ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
     ImGui::Separator();
-    ImGui::PopStyleColor();
+    ImGui::Spacing();
+
+    ImGui::TextColored(ImVec4(0.60f, 0.62f, 0.70f, 1.0f),
+                       "Bloques: %zu  |  Tareas: %zu  |  Datoms: %zu  |  Misiones IA: %zu",
+                       app.getOutlinerEngine().getAllBlocks().size(),
+                       app.getTaskEngine().getTasks().size(),
+                       app.getDatalogEngine().datomCount(),
+                       app.getAgentEngine().listRuns().size());
     ImGui::Spacing();
 
     ImGui::TextColored(ImVec4(0.75f, 0.78f, 0.45f, 1.0f), "Metricas");
