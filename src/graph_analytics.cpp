@@ -14,7 +14,6 @@ void GraphAnalytics::analyze(const Graph& graph) {
 
     const auto& nodes = graph.getNodes();
 
-    // Initialize metrics
     for (const auto& node : nodes) {
         NodeMetrics metric;
         metric.noteId = node.noteId;
@@ -43,7 +42,6 @@ void GraphAnalytics::computePageRank(const Graph& graph) {
     std::vector<float> pageRank(n, 1.0f / n);
     std::vector<float> newPageRank(n);
 
-    // Build adjacency list (bidirectional)
     std::vector<std::vector<int>> adj(n);
     std::vector<int> outDegree(n, 0);
 
@@ -81,7 +79,6 @@ void GraphAnalytics::computePageRank(const Graph& graph) {
         }
     }
 
-    // Normalize to [0, 1]
     float maxPR = *std::max_element(pageRank.begin(), pageRank.end());
     if (maxPR > 0.0f) {
         for (float& pr : pageRank) {
@@ -103,7 +100,6 @@ void GraphAnalytics::computeBetweenness(const Graph& graph) {
 
     std::vector<float> betweenness(n, 0.0f);
 
-    // Build adjacency list
     std::vector<std::vector<int>> adj(n);
     for (const auto& edge : edges) {
         if (edge.from >= 0 && edge.from < static_cast<int>(n) &&
@@ -113,7 +109,6 @@ void GraphAnalytics::computeBetweenness(const Graph& graph) {
         }
     }
 
-    // Brandes' algorithm: for each source node
     for (size_t s = 0; s < n; ++s) {
         std::vector<std::vector<int>> predecessors(n);
         std::vector<int> pathCount(n, 0);
@@ -126,7 +121,6 @@ void GraphAnalytics::computeBetweenness(const Graph& graph) {
         std::queue<int> q;
         q.push(s);
 
-        // BFS from source
         std::vector<int> order;
         while (!q.empty()) {
             int v = q.front();
@@ -145,7 +139,6 @@ void GraphAnalytics::computeBetweenness(const Graph& graph) {
             }
         }
 
-        // Accumulate dependency scores backward
         for (int i = static_cast<int>(order.size()) - 1; i >= 0; --i) {
             int w = order[i];
             for (int v : predecessors[w]) {
@@ -158,7 +151,6 @@ void GraphAnalytics::computeBetweenness(const Graph& graph) {
         }
     }
 
-    // Normalize by (N-1)*(N-2)/2
     float normalization = (n - 1) * (n - 2) / 2.0f;
     if (normalization > 0.0f) {
         for (float& bc : betweenness) {
@@ -183,7 +175,6 @@ void GraphAnalytics::detectCommunities(const Graph& graph) {
         labels[i] = static_cast<int>(i);
     }
 
-    // Build adjacency list
     std::vector<std::vector<int>> adj(n);
     for (const auto& edge : edges) {
         if (edge.from >= 0 && edge.from < static_cast<int>(n) &&
@@ -193,7 +184,6 @@ void GraphAnalytics::detectCommunities(const Graph& graph) {
         }
     }
 
-    // Label Propagation Algorithm
     const int maxIterations = 100;
     for (int iter = 0; iter < maxIterations; ++iter) {
         bool changed = false;
@@ -230,7 +220,6 @@ void GraphAnalytics::detectCommunities(const Graph& graph) {
         }
     }
 
-    // Renumber communities sequentially
     std::unordered_map<int, int> labelMap;
     int communityCounter = 0;
 
@@ -280,4 +269,4 @@ std::vector<std::string> GraphAnalytics::getCommunityMembers(int communityId) co
     return members;
 }
 
-} // namespace nodepanda
+}
