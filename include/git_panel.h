@@ -17,4 +17,4 @@ private:
     bool m_autoCommit = true;
     int m_frameCounter = 0;
 };
-} // namespace nodepanda
+}
