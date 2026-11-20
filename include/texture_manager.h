@@ -16,7 +16,6 @@ class TextureManager {
 public:
     ~TextureManager();
 
-    
     bool LoadTextureFromFile(const char* filename,
                              GLuint* out_texture,
                              int* out_width,
@@ -29,8 +28,8 @@ public:
     static bool isSupportedImage(const std::string& extension);
 
 private:
-    
+
     std::map<std::string, TextureInfo> m_cache;
 };
 
-} 
+}
