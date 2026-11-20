@@ -29,28 +29,31 @@ void ExplorerPanel::render(App& app) {
 
     auto& nm = app.getNoteManager();
 
-    float btnW = (ImGui::GetContentRegionAvail().x - 4.0f) * 0.5f;
+    float btnW = (ImGui::GetContentRegionAvail().x - 8.0f) / 3.0f;
 
-    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.12f, 0.32f, 0.18f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  ImVec4(0.16f, 0.45f, 0.24f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,   ImVec4(0.10f, 0.25f, 0.14f, 1.0f));
-    if (ImGui::Button("+ Nota", ImVec2(btnW, 26.0f))) {
+    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.15f, 0.49f, 0.88f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  ImVec4(0.20f, 0.55f, 0.93f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,   ImVec4(0.12f, 0.40f, 0.75f, 1.0f));
+    if (ImGui::Button("+ Nota", ImVec2(btnW, 28.0f))) {
         m_showNewNoteDialog = true;
         memset(m_newNoteName,   0, sizeof(m_newNoteName));
         memset(m_newNoteFolder, 0, sizeof(m_newNoteFolder));
     }
     ImGui::PopStyleColor(3);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Crear una nueva nota Markdown (.md)");
 
     ImGui::SameLine(0.0f, 4.0f);
 
-    if (ImGui::Button("+ Carpeta", ImVec2(btnW, 26.0f))) {
+    if (ImGui::Button("+ Carpeta", ImVec2(btnW, 28.0f))) {
         m_showNewFolderDialog = true;
         memset(m_newFolderName, 0, sizeof(m_newFolderName));
     }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Crear una subcarpeta dentro del directorio de notas");
+
+    ImGui::SameLine(0.0f, 4.0f);
+
+    if (ImGui::Button("Diario", ImVec2(btnW, 28.0f))) {
+        app.selectedNoteId = app.getJournalEngine().ensureTodayJournal(nm);
+        app.graphNeedsRebuild = true;
+    }
 
     ImGui::Spacing();
 
