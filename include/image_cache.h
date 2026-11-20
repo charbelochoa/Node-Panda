@@ -16,7 +16,6 @@ class ImageCache {
 public:
     ~ImageCache();
 
-    
     const CachedTexture* loadTexture(const std::string& filepath);
 
     void clear();
@@ -27,4 +26,4 @@ private:
     std::unordered_map<std::string, CachedTexture> m_cache;
 };
 
-} 
+}
