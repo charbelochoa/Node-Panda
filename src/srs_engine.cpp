@@ -7,7 +7,6 @@
 
 namespace nodepanda {
 
-// Helper: Parse YYYY-MM-DD string to tm struct
 static std::tm parseDate(const std::string& dateStr) {
     std::tm tm = {};
     std::istringstream ss(dateStr);
@@ -15,23 +14,20 @@ static std::tm parseDate(const std::string& dateStr) {
     return tm;
 }
 
-// Helper: Format tm struct to YYYY-MM-DD string
 static std::string formatDate(const std::tm& tm) {
     std::ostringstream ss;
     ss << std::put_time(&tm, "%Y-%m-%d");
     return ss.str();
 }
 
-// Helper: Add days to a date
 static std::string addDaysToDate(const std::string& dateStr, int days) {
     std::tm tm = parseDate(dateStr);
     auto time = std::mktime(&tm);
-    time += days * 86400; // seconds per day
+    time += days * 86400;
     tm = *std::localtime(&time);
     return formatDate(tm);
 }
 
-// Helper: Compare two YYYY-MM-DD date strings (returns -1, 0, or 1)
 static int compareDates(const std::string& date1, const std::string& date2) {
     if (date1 < date2) return -1;
     if (date1 > date2) return 1;
@@ -56,13 +52,11 @@ void SRSEngine::buildQueue(NoteManager& nm) {
         const std::string& noteId = pair.first;
         Note& note = pair.second;
 
-        // Check if note has SRS frontmatter
         auto it = note.frontmatter.find("srs_next");
         if (it != note.frontmatter.end()) {
             SRSCard card = readCardFromNote(noteId, nm);
             m_allCards.push_back(card);
 
-            // Check if due
             if (compareDates(card.nextReview, today) <= 0) {
                 card.isDue = true;
                 m_dueCards.push_back(card);
@@ -80,7 +74,6 @@ SRSCard SRSEngine::readCardFromNote(const std::string& noteId, NoteManager& nm) 
 
     card.title = note->title;
 
-    // Read SRS frontmatter
     auto it = note->frontmatter.find("srs_interval");
     if (it != note->frontmatter.end()) {
         card.interval = std::stoi(it->second);
@@ -127,7 +120,7 @@ void SRSEngine::applySmTwo(SRSCard& card, SRSRating rating) {
     std::string today = todayStr();
 
     if (quality >= 3) {
-        // Correct response
+
         if (card.repetitions == 0) {
             card.interval = 1;
         } else if (card.repetitions == 1) {
@@ -137,18 +130,16 @@ void SRSEngine::applySmTwo(SRSCard& card, SRSRating rating) {
         }
         card.repetitions++;
     } else {
-        // Incorrect response
+
         card.repetitions = 0;
         card.interval = 1;
     }
 
-    // Update ease factor
     card.easeFactor += 0.1f - (5.0f - quality) * (0.08f + (5.0f - quality) * 0.02f);
     if (card.easeFactor < 1.3f) {
         card.easeFactor = 1.3f;
     }
 
-    // Update review dates
     card.nextReview = addDaysToDate(today, card.interval);
     card.lastReview = today;
 }
@@ -157,7 +148,6 @@ void SRSEngine::enrollNote(const std::string& noteId, NoteManager& nm) {
     Note* note = nm.getNoteById(noteId);
     if (!note) return;
 
-    // Check if already enrolled
     if (isEnrolled(noteId, nm)) return;
 
     std::string today = todayStr();
@@ -197,4 +187,4 @@ void SRSEngine::rateCard(const std::string& noteId, SRSRating rating, NoteManage
     writeCardToNote(card, nm);
 }
 
-} // namespace nodepanda
+}
