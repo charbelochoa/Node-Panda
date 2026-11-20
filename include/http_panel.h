@@ -10,4 +10,4 @@ public:
 private:
     bool m_wasRunning = false;
 };
-} // namespace nodepanda
+}
