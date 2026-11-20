@@ -226,9 +226,9 @@ textarea{min-height:84px;resize:vertical}
 .chip.active{background:var(--acs);color:#8ac0ff;border-color:var(--ac)}
 .list-item{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:12px;margin-bottom:8px;cursor:pointer}
 .list-item:active{background:var(--s2)}
-.title{font-weight:600;font-size:15px;color:var(--tx)}
+.title{font-weight:600;font-size:15px;color:var(--tx);min-width:0;overflow:hidden;text-overflow:ellipsis}
 .meta{font-size:12px;color:var(--tx3);margin-top:3px}
-.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:var(--s3);color:var(--tx2)}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:var(--s3);color:var(--tx2);white-space:nowrap;flex-shrink:0}
 .badge.ac{background:var(--acs);color:#8ac0ff}
 .badge.ok{background:rgba(16,161,34,.18);color:#5fe06f}
 .badge.wn{background:rgba(251,179,21,.18);color:#ffd15c}
