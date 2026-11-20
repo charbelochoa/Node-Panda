@@ -456,6 +456,54 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
         return json_mini::extractString(json, key);
     });
 
+    sol::table bloques = lua.create_named_table("bloques");
+    bloques.set_function("contar", [this]() -> int {
+        return static_cast<int>(m_app->getOutlinerEngine().getAllBlocks().size());
+    });
+    bloques.set_function("crear", [this](const std::string& pageId, const std::string& content) -> std::string {
+        std::string id = m_app->getOutlinerEngine().createBlock(m_app->getNoteManager(), pageId, content);
+        m_app->rebuildKnowledgeIndices();
+        return id;
+    });
+
+    sol::table tareas = lua.create_named_table("tareas");
+    tareas.set_function("contar", [this]() -> int {
+        return static_cast<int>(m_app->getTaskEngine().getTasks().size());
+    });
+    tareas.set_function("pendientes", [this]() -> int {
+        return m_app->getTaskEngine().countByStatus(TaskStatus::Todo);
+    });
+    tareas.set_function("vencidas", [this]() -> int {
+        return m_app->getTaskEngine().countOverdue();
+    });
+    tareas.set_function("crear", [this](const std::string& pageId, const std::string& title) -> std::string {
+        std::string id = m_app->getTaskEngine().createTask(m_app->getNoteManager(), pageId, title);
+        m_app->rebuildKnowledgeIndices();
+        return id;
+    });
+
+    sol::table agentes = lua.create_named_table("agentes");
+    agentes.set_function("misiones", [this]() -> int {
+        return static_cast<int>(m_app->getAgentEngine().listRuns().size());
+    });
+    agentes.set_function("ejecutar", [this](const std::string& prompt, sol::optional<std::string> model) -> std::string {
+        auto run = m_app->getAgentEngine().createAndStartRun("plugin", prompt, model.value_or("auto"));
+        return run.id;
+    });
+
+    sol::table db = lua.create_named_table("db");
+    db.set_function("motor", [this]() -> std::string {
+        return m_app->getDatabaseManager().getStatus().engineName;
+    });
+    db.set_function("conectado", [this]() -> bool {
+        return m_app->getDatabaseManager().getStatus().connected;
+    });
+    db.set_function("sincronizar", [this]() -> std::string {
+        std::string summary;
+        m_app->getDatabaseManager().syncNotes(m_app->getNoteManager(), summary);
+        return summary;
+    });
+
     sol::table ui = lua.create_named_table("ui");
 
     ui.set_function("menu_item", [this, pluginId](const std::string& label,
