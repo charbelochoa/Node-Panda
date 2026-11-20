@@ -1,9 +1,12 @@
 {
-  "name":        "Plantillas",
-  "id":          "templates",
-  "version":     "1.0.0",
-  "author":      "NodePanda",
+  "name": "Plantillas",
+  "id": "templates",
+  "version": "2.0.0",
+  "author": "NodePanda",
   "description": "Insertar plantillas predefinidas al crear nuevas notas (Reunion, Proyecto, Concepto, Tarea).",
-  "hooks":       ["on_load", "on_note_create"],
-  "enabled":     true
+  "hooks": [
+    "on_load",
+    "on_note_create"
+  ],
+  "enabled": true
 }
