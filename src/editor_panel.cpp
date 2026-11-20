@@ -46,22 +46,14 @@ void EditorPanel::renderPandaBanner(App& app) {
             ImGui::Image(
                 reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(m_pandaTexId)),
                 ImVec2(IMG_SIZE, IMG_SIZE));
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Node Panda — tu asistente de notas enlazadas");
         } else {
             const char* fallback = "Node Panda";
             ImVec2 fsz = ImGui::CalcTextSize(fallback);
             ImGui::SetCursorPos(
                 ImVec2((availW - fsz.x) * 0.5f,
                        PAD_TOP + (IMG_SIZE - fsz.y) * 0.5f));
-            ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f), "%s", fallback);
+            ImGui::TextColored(ImVec4(0.15f, 0.49f, 0.88f, 1.0f), "%s", fallback);
         }
-
-        const char* greeting = "Asistente listo";
-        ImVec2 tsz = ImGui::CalcTextSize(greeting);
-        ImGui::SetCursorPos(
-            ImVec2((availW - tsz.x) * 0.5f, PAD_TOP + IMG_SIZE + GAP));
-        ImGui::TextDisabled("%s", greeting);
     }
     ImGui::EndChild();
     ImGui::PopStyleColor();
@@ -187,6 +179,7 @@ void EditorPanel::render(App& app) {
         note->parseLinks();
         note->parseTitle();
         app.graphNeedsRebuild = true;
+        app.rebuildKnowledgeIndices();
         app.getPluginManager().callOnNoteSave(note->id);
     }
     ImGui::PopStyleColor(3);
