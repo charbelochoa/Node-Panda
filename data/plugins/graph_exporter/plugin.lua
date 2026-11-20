@@ -1,10 +1,3 @@
--- ═══════════════════════════════════════════════════════════════════════════
---  Plugin: Graph Exporter
---  Exporta el grafo de notas enlazadas a formato DOT (Graphviz) o JSON.
---  Los archivos se guardan en data/.
--- ═══════════════════════════════════════════════════════════════════════════
-
--- ── Generar DOT ──────────────────────────────────────────────────────────
 local function exportar_dot()
     local ids = notas.listar()
     local lines = {}
@@ -18,7 +11,6 @@ local function exportar_dot()
     table.insert(lines, '  edge [color="#4EC9E8", arrowsize=0.6];')
     table.insert(lines, '')
 
-    -- Nodos
     for _, id in ipairs(ids) do
         local titulo = notas.titulo(id)
         if titulo == "" then titulo = id end
@@ -28,7 +20,7 @@ local function exportar_dot()
             extra = ', xlabel="' .. tipo .. '"'
         end
         local conex = grafo.conexiones(id)
-        -- Nodos mas conectados son mas grandes
+
         local width = 1.0 + (conex * 0.2)
         table.insert(lines, '  "' .. id .. '" [label="' .. titulo .. '"'
             .. ', width=' .. string.format("%.1f", width) .. extra .. '];')
@@ -36,7 +28,6 @@ local function exportar_dot()
 
     table.insert(lines, '')
 
-    -- Aristas (basadas en enlaces de cada nota)
     local edges_seen = {}
     for _, id in ipairs(ids) do
         local enlaces = notas.enlaces(id)
@@ -53,7 +44,6 @@ local function exportar_dot()
     return table.concat(lines, "\n")
 end
 
--- ── Generar JSON (lista de adyacencia) ───────────────────────────────────
 local function exportar_json()
     local ids = notas.listar()
     local lines = {}
@@ -103,7 +93,6 @@ local function exportar_json()
     return table.concat(lines, "\n")
 end
 
--- ── on_load: registrar menu items ────────────────────────────────────────
 function on_load()
     print("[Graph Exporter] Plugin activo")
 
