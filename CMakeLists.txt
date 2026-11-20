@@ -171,6 +171,10 @@ if(WIN32)
     target_link_libraries(NodePanda PRIVATE comdlg32 psapi ws2_32 winhttp)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15.0)
+    target_compile_options(NodePanda PRIVATE -Wno-template-body)
+endif()
+
 add_custom_command(TARGET NodePanda POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:NodePanda>/data/notas"
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:NodePanda>/data/plugins"
