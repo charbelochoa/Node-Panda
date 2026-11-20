@@ -39,6 +39,11 @@ private:
     int handleBackupCommand(App& app, const std::vector<std::string>& args);
     int handleRunCommand(App& app, const std::vector<std::string>& args);
     int handleLabCommand(App& app, const std::string& subcmd, const std::vector<std::string>& args);
+    int handleVectorCommand(App& app, const std::vector<std::string>& args);
+    int handleRtcCommand(App& app, const std::vector<std::string>& args);
+    int handlePdfCommand(App& app, const std::vector<std::string>& args);
+    int handleTableCommand(App& app, const std::vector<std::string>& args);
+    int handleMobileCommand(App& app, const std::vector<std::string>& args, int defaultPort);
     int handleDoctorCommand(App& app);
     void printHelp() const;
     static std::string getFlag(const std::vector<std::string>& args, const std::string& flag, const std::string& def = "");
