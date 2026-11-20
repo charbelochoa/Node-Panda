@@ -27,20 +27,18 @@ public:
 
     void saveAllDirty();
 
-    
     void rebuildAllLinks();
-    
+
     std::string resolveAlias(const std::string& name) const;
 
     std::vector<std::string> getBacklinks(const std::string& targetNoteId) const;
 
-    
     bool reloadNote(const std::string& relativePath);
 
 private:
     std::filesystem::path m_notesDir;
     std::unordered_map<std::string, Note> m_notes;
-    std::unordered_map<std::string, std::string> m_aliasMap; 
+    std::unordered_map<std::string, std::string> m_aliasMap;
 };
 
-} 
+}
