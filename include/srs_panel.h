@@ -12,6 +12,6 @@ private:
     bool m_initialized = false;
     int m_currentCard = 0;
     bool m_showAnswer = false;
-    int m_selectedTab = 0; // 0=review, 1=manage
+    int m_selectedTab = 0;
 };
-} // namespace nodepanda
+}
