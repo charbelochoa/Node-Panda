@@ -35,7 +35,7 @@ private:
     int m_port = 8042;
     std::atomic<bool> m_running{false};
     std::thread m_thread;
-    uintptr_t m_serverSocket = ~(uintptr_t)0;  // INVALID_SOCKET portable
+    uintptr_t m_serverSocket = ~(uintptr_t)0;
 };
 
-} // namespace nodepanda
+}
