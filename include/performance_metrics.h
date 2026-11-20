@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <chrono>
 #include <array>
 
@@ -31,7 +30,7 @@ private:
     float m_fps            = 0.0f;
     float m_frameTimeMs    = 0.0f;
     float m_memoryMB       = 0.0f;
-    int   m_memUpdateCount = 0; 
+    int   m_memUpdateCount = 0;
 };
 
-} 
+}
