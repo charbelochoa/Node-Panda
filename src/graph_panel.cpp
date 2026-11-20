@@ -1,45 +1,129 @@
 #include "graph_panel.h"
+#include "ui_theme.h"
+#include "ui_components.h"
 #include "imgui.h"
 #include <cmath>
 #include <algorithm>
 #include <vector>
 #include <numeric>
+#include <queue>
+#include <cctype>
+#include <cstdio>
+#include <cstring>
+#include <string>
 
 namespace nodepanda {
 
-static ImVec4 typeColor(const std::string& tipo) {
-    if (tipo == "proyecto")    return ImVec4(0.15f, 0.85f, 0.90f, 0.95f);
-    if (tipo == "concepto")    return ImVec4(0.62f, 0.38f, 0.88f, 0.95f);
-    if (tipo == "referencia")  return ImVec4(0.90f, 0.72f, 0.20f, 0.95f);
-    if (tipo == "diario")      return ImVec4(0.40f, 0.82f, 0.45f, 0.95f);
-    if (tipo == "tarea")       return ImVec4(0.95f, 0.45f, 0.35f, 0.95f);
-    return ImVec4(-1, -1, -1, -1);
+namespace {
+
+char g_graphSearchBuf[128] = {};
+int g_graphDepthFilter = 0;
+
+std::string toLowerStr(const std::string& s) {
+    std::string out = s;
+    std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return out;
 }
 
-static ImVec4 connectivityColor(int count) {
-    if (count <= 0) return ImVec4(0.32f, 0.38f, 0.55f, 0.90f);
-    if (count == 1) return ImVec4(0.30f, 0.52f, 0.72f, 0.90f);
-    if (count <= 3) return ImVec4(0.20f, 0.68f, 0.72f, 0.92f);
-    if (count <= 5) return ImVec4(0.15f, 0.80f, 0.82f, 0.95f);
-    return              ImVec4(0.45f, 0.90f, 0.38f, 0.95f);
+bool nodeMatchesSearch(const GraphNode& node, const Note* note, const std::string& queryLower) {
+    if (queryLower.empty()) return false;
+    if (toLowerStr(node.noteId).find(queryLower) != std::string::npos) return true;
+    if (note && toLowerStr(note->title).find(queryLower) != std::string::npos) return true;
+    return false;
 }
 
-static ImVec4 nodeColor(const GraphNode& node) {
-    ImVec4 tc = typeColor(node.nodeType);
+std::vector<bool> computeVisibleMask(const std::vector<GraphNode>& nodes,
+                                     const std::vector<GraphEdge>& edges,
+                                     const std::string& selectedId,
+                                     int maxDepth) {
+    std::vector<bool> visible(nodes.size(), true);
+    if (maxDepth <= 0 || selectedId.empty() || nodes.empty()) {
+        return visible;
+    }
+
+    int startIdx = -1;
+    for (int i = 0; i < static_cast<int>(nodes.size()); ++i) {
+        if (nodes[i].noteId == selectedId) {
+            startIdx = i;
+            break;
+        }
+    }
+    if (startIdx < 0) {
+        return visible;
+    }
+
+    std::vector<std::vector<int>> adj(nodes.size());
+    for (const auto& e : edges) {
+        if (e.from >= 0 && e.from < static_cast<int>(nodes.size()) &&
+            e.to >= 0 && e.to < static_cast<int>(nodes.size())) {
+            adj[e.from].push_back(e.to);
+            adj[e.to].push_back(e.from);
+        }
+    }
+
+    std::fill(visible.begin(), visible.end(), false);
+    std::vector<int> dist(nodes.size(), -1);
+    std::queue<int> q;
+    dist[startIdx] = 0;
+    visible[startIdx] = true;
+    q.push(startIdx);
+
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+        if (dist[u] >= maxDepth) continue;
+        for (int v : adj[u]) {
+            if (dist[v] == -1) {
+                dist[v] = dist[u] + 1;
+                visible[v] = true;
+                q.push(v);
+            }
+        }
+    }
+    return visible;
+}
+
+ImVec4 typeColor(const std::string& tipo, const ThemePalette& pal) {
+    if (tipo == "proyecto")   return pal.aqua;
+    if (tipo == "concepto")   return pal.proViolet;
+    if (tipo == "referencia") return pal.warning;
+    if (tipo == "diario")     return pal.success;
+    if (tipo == "tarea")      return pal.orange;
+    return ImVec4(-1.0f, -1.0f, -1.0f, -1.0f);
+}
+
+ImVec4 connectivityColor(int count, const ThemePalette& pal) {
+    if (count <= 0) return pal.textMuted;
+    if (count == 1) return pal.accent;
+    if (count <= 3) return pal.aqua;
+    if (count <= 5) return pal.proViolet;
+    return pal.success;
+}
+
+ImVec4 nodeColor(const GraphNode& node, const ThemePalette& pal) {
+    ImVec4 tc = typeColor(node.nodeType, pal);
     if (tc.x >= 0.0f) return tc;
-    return connectivityColor(node.connectionCount);
+    return connectivityColor(node.connectionCount, pal);
 }
 
-static ImU32 toCol32(ImVec4 c, float alphaOverride = -1.0f) {
+ImU32 toCol32(ImVec4 c, float alphaOverride = -1.0f) {
+    float a = (alphaOverride >= 0.0f) ? alphaOverride : c.w;
+    a = std::max(0.0f, std::min(1.0f, a));
     return IM_COL32(
-        (int)(c.x * 255),
-        (int)(c.y * 255),
-        (int)(c.z * 255),
-        (int)((alphaOverride >= 0.0f ? alphaOverride : c.w) * 255)
+        static_cast<int>(c.x * 255.0f),
+        static_cast<int>(c.y * 255.0f),
+        static_cast<int>(c.z * 255.0f),
+        static_cast<int>(a * 255.0f)
     );
 }
 
+}
+
 void GraphPanel::render(App& app) {
+    const ThemePalette& pal = UITheme::palette();
+
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::Begin("Grafo de Nodos", nullptr,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
@@ -49,17 +133,61 @@ void GraphPanel::render(App& app) {
     auto& nodes = graph.getNodes();
     auto& edges = graph.getEdges();
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 4.0f));
-    ImGui::SetCursorPos(ImVec2(8.0f, 6.0f));
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.45f, 0.48f, 0.60f, 1.0f));
-    ImGui::Text("Nodos: %d  |  Aristas: %d  |  Zoom: %.0f%%  |  %s",
-                (int)nodes.size(), (int)edges.size(),
-                m_zoom * 100.0f,
-                m_mode3D ? "3D" : "2D");
-    ImGui::PopStyleColor();
-    ImGui::SameLine(0.0f, 16.0f);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, pal.bgSurface1);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 6.0f));
+    ImGui::BeginChild("##graph_toolbar", ImVec2(0.0f, 44.0f), false,
+                      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
-    if (ImGui::SmallButton("Reset")) {
+    int modeIdx = m_mode3D ? 1 : 0;
+    if (ui::segmentedControl("##graph_mode_seg", &modeIdx, {"2D", "3D"}, 92.0f)) {
+        m_mode3D = (modeIdx == 1);
+        app.getForceLayout().mode3D = m_mode3D;
+        app.getForceLayout().reset();
+        app.getForceLayout().initialize(app.getGraph(), 800.0f, 600.0f);
+    }
+
+    ImGui::SameLine(0.0f, 10.0f);
+    char nodeBadge[48];
+    char edgeBadge[48];
+    char zoomBadge[48];
+    std::snprintf(nodeBadge, sizeof(nodeBadge), "Nodos: %d", static_cast<int>(nodes.size()));
+    std::snprintf(edgeBadge, sizeof(edgeBadge), "Aristas: %d", static_cast<int>(edges.size()));
+    if (m_mode3D) {
+        std::snprintf(zoomBadge, sizeof(zoomBadge), "Dist: %.0f", m_camDist);
+    } else {
+        std::snprintf(zoomBadge, sizeof(zoomBadge), "%.0f%%", m_zoom * 100.0f);
+    }
+
+    ui::badge(nodeBadge, pal.bgSurface3, pal.textPrimary);
+    ImGui::SameLine(0.0f, 6.0f);
+    ui::badge(edgeBadge, pal.bgSurface3, pal.textSecondary);
+    ImGui::SameLine(0.0f, 6.0f);
+    ui::badge(zoomBadge, pal.accentSoft, pal.accent);
+
+    ImGui::SameLine(0.0f, 10.0f);
+    const char* depthLabel = "Filtro: Todo";
+    if (g_graphDepthFilter == 1) depthLabel = "Filtro: 1 salto";
+    else if (g_graphDepthFilter == 2) depthLabel = "Filtro: 2 saltos";
+
+    if (ui::subtleButton(depthLabel)) {
+        g_graphDepthFilter = (g_graphDepthFilter + 1) % 3;
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Alternar profundidad local alrededor de la nota activa");
+    }
+
+    if (!m_mode3D) {
+        ImGui::SameLine(0.0f, 6.0f);
+        if (ui::subtleButton(m_autoCenter ? "Auto-Center: ON" : "Auto-Center: OFF")) {
+            m_autoCenter = !m_autoCenter;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Centrar automaticamente en el centroide");
+        }
+    }
+
+    ImGui::SameLine(0.0f, 6.0f);
+    if (ui::subtleButton("Reset")) {
         m_zoom = 1.0f;
         m_panX = 0.0f;
         m_panY = 0.0f;
@@ -68,56 +196,50 @@ void GraphPanel::render(App& app) {
         m_camPitch = 0.3f;
         m_camDist = 600.0f;
     }
-    if (ImGui::IsItemHovered())
+    if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("Restablecer camara y zoom");
-
-    ImGui::SameLine(0.0f, 8.0f);
-
-    if (m_mode3D) {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.50f, 0.25f, 0.60f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.60f, 0.35f, 0.70f, 1.0f));
-    } else {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.25f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.25f, 0.35f, 1.0f));
     }
-    if (ImGui::SmallButton(m_mode3D ? "Modo: 3D" : "Modo: 2D")) {
-        m_mode3D = !m_mode3D;
 
-        app.getForceLayout().mode3D = m_mode3D;
-        app.getForceLayout().reset();
-        app.getForceLayout().initialize(app.getGraph(), 800.0f, 600.0f);
-    }
-    ImGui::PopStyleColor(2);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip(m_mode3D
-            ? "Cambiar a vista 2D\nArrastrar = rotar | Scroll = zoom"
-            : "Cambiar a vista 3D con perspectiva");
-
-    ImGui::SameLine(0.0f, 8.0f);
-
-    if (!m_mode3D) {
-        if (m_autoCenter) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.50f, 0.48f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.60f, 0.55f, 1.0f));
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.25f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.25f, 0.35f, 1.0f));
+    ImGui::SameLine(0.0f, 10.0f);
+    float searchW = std::max(110.0f, std::min(190.0f, ImGui::GetContentRegionAvail().x - 32.0f));
+    ImGui::SetNextItemWidth(searchW);
+    bool searchEnter = ImGui::InputTextWithHint("##graph_search", "Buscar nodo...",
+                                                g_graphSearchBuf, sizeof(g_graphSearchBuf),
+                                                ImGuiInputTextFlags_EnterReturnsTrue);
+    if (searchEnter && g_graphSearchBuf[0] != '\0') {
+        std::string qLower = toLowerStr(g_graphSearchBuf);
+        for (const auto& n : nodes) {
+            Note* note = app.getNoteManager().getNoteById(n.noteId);
+            if (nodeMatchesSearch(n, note, qLower)) {
+                app.selectedNoteId = n.noteId;
+                if (!m_mode3D) {
+                    m_panX = -n.x * m_zoom;
+                    m_panY = -n.y * m_zoom;
+                    m_autoCenter = false;
+                }
+                break;
+            }
         }
-        if (ImGui::SmallButton(m_autoCenter ? "Auto-Center: ON" : "Auto-Center: OFF")) {
-            m_autoCenter = !m_autoCenter;
-        }
-        ImGui::PopStyleColor(2);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Centrar automaticamente en el centroide");
     }
 
+    if (g_graphSearchBuf[0] != '\0') {
+        ImGui::SameLine(0.0f, 4.0f);
+        if (ui::subtleButton("X##clear_gsearch")) {
+            g_graphSearchBuf[0] = '\0';
+        }
+    }
+
+    ImGui::EndChild();
     ImGui::PopStyleVar();
-    ImGui::Spacing();
+    ImGui::PopStyleColor();
+
+    ImGui::PushStyleColor(ImGuiCol_Separator, pal.borderLine);
+    ImGui::Separator();
+    ImGui::PopStyleColor();
 
     if (nodes.empty()) {
-        ImGui::SetCursorPosX(20.0f);
-        ImGui::TextColored(ImVec4(0.30f, 0.32f, 0.42f, 1.0f),
-                           "Crea notas con [[enlaces]] para ver el grafo.");
+        ImGui::SetCursorPos(ImVec2(20.0f, 64.0f));
+        ImGui::TextColored(pal.textMuted, "Crea notas con [[enlaces]] para ver el grafo.");
         ImGui::End();
         return;
     }
@@ -131,20 +253,33 @@ void GraphPanel::render(App& app) {
 }
 
 void GraphPanel::render2D(App& app) {
+    const ThemePalette& pal = UITheme::palette();
     auto& graph = app.getGraph();
     auto& nodes = graph.getNodes();
     auto& edges = graph.getEdges();
     ImGuiIO& io = ImGui::GetIO();
 
+    std::vector<bool> visibleMask = computeVisibleMask(nodes, edges, app.selectedNoteId, g_graphDepthFilter);
+    std::string searchLower = toLowerStr(g_graphSearchBuf);
+    bool hasSearch = !searchLower.empty();
+
     if (m_autoCenter && !nodes.empty()) {
         float avgX = 0.0f, avgY = 0.0f;
-        for (const auto& node : nodes) { avgX += node.x; avgY += node.y; }
-        avgX /= (float)nodes.size();
-        avgY /= (float)nodes.size();
-        float targetPanX = -avgX * m_zoom;
-        float targetPanY = -avgY * m_zoom;
-        m_panX += (targetPanX - m_panX) * 0.08f;
-        m_panY += (targetPanY - m_panY) * 0.08f;
+        int visCount = 0;
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            if (!visibleMask[i]) continue;
+            avgX += nodes[i].x;
+            avgY += nodes[i].y;
+            ++visCount;
+        }
+        if (visCount > 0) {
+            avgX /= static_cast<float>(visCount);
+            avgY /= static_cast<float>(visCount);
+            float targetPanX = -avgX * m_zoom;
+            float targetPanY = -avgY * m_zoom;
+            m_panX += (targetPanX - m_panX) * 0.08f;
+            m_panY += (targetPanY - m_panY) * 0.08f;
+        }
     }
 
     ImVec2 canvasOrig = ImGui::GetCursorScreenPos();
@@ -192,14 +327,14 @@ void GraphPanel::render2D(App& app) {
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
     dl->PushClipRect(canvasOrig, canvasEnd, true);
-    dl->AddRectFilled(canvasOrig, canvasEnd, IM_COL32(10, 11, 16, 255));
+    dl->AddRectFilled(canvasOrig, canvasEnd, toCol32(pal.bgBase, 1.0f));
 
     {
         float minorStep = 30.0f * m_zoom;
         if (minorStep >= 4.0f) {
             float ox = fmodf(m_panX + canvasSize.x * 0.5f, minorStep);
             float oy = fmodf(m_panY + canvasSize.y * 0.5f, minorStep);
-            ImU32 minorCol = IM_COL32(22, 24, 36, 90);
+            ImU32 minorCol = toCol32(pal.border, 0.35f);
             for (float x = ox; x < canvasSize.x; x += minorStep)
                 dl->AddLine({ canvasOrig.x + x, canvasOrig.y }, { canvasOrig.x + x, canvasEnd.y }, minorCol);
             for (float y = oy; y < canvasSize.y; y += minorStep)
@@ -209,11 +344,11 @@ void GraphPanel::render2D(App& app) {
         if (majorStep >= 8.0f) {
             float ox = fmodf(m_panX + canvasSize.x * 0.5f, majorStep);
             float oy = fmodf(m_panY + canvasSize.y * 0.5f, majorStep);
-            ImU32 majorCol = IM_COL32(28, 32, 50, 130);
+            ImU32 majorCol = toCol32(pal.borderLine, 0.55f);
             for (float x = ox; x < canvasSize.x; x += majorStep)
-                dl->AddLine({ canvasOrig.x + x, canvasOrig.y }, { canvasOrig.x + x, canvasEnd.y }, majorCol, 1.5f);
+                dl->AddLine({ canvasOrig.x + x, canvasOrig.y }, { canvasOrig.x + x, canvasEnd.y }, majorCol, 1.2f);
             for (float y = oy; y < canvasSize.y; y += majorStep)
-                dl->AddLine({ canvasOrig.x, canvasOrig.y + y }, { canvasEnd.x, canvasOrig.y + y }, majorCol, 1.5f);
+                dl->AddLine({ canvasOrig.x, canvasOrig.y + y }, { canvasEnd.x, canvasOrig.y + y }, majorCol, 1.2f);
         }
     }
 
@@ -226,15 +361,17 @@ void GraphPanel::render2D(App& app) {
     };
 
     int lodLevel;
-    int nodeCount = (int)nodes.size();
+    int nodeCount = static_cast<int>(nodes.size());
     if (m_zoom >= 0.5f || nodeCount <= 200) lodLevel = 0;
     else if (m_zoom >= 0.25f || nodeCount <= 1000) lodLevel = 1;
     else lodLevel = 2;
     int circleSegments = (lodLevel == 0) ? 32 : (lodLevel == 1) ? 16 : 8;
 
     for (const auto& edge : edges) {
-        if (edge.from < 0 || edge.from >= (int)nodes.size()) continue;
-        if (edge.to < 0 || edge.to >= (int)nodes.size()) continue;
+        if (edge.from < 0 || edge.from >= nodeCount) continue;
+        if (edge.to < 0 || edge.to >= nodeCount) continue;
+        if (!visibleMask[edge.from] || !visibleMask[edge.to]) continue;
+
         const auto& a = nodes[edge.from];
         const auto& b = nodes[edge.to];
         ImVec2 p1 = graphToScreen(a.x, a.y);
@@ -250,14 +387,17 @@ void GraphPanel::render2D(App& app) {
         bool dimB = (b.noteId == app.selectedNoteId);
         ImU32 edgeCol;
         if (dimA || dimB) {
-            ImVec4 colA = nodeColor(a);
-            ImVec4 colB = nodeColor(b);
-            edgeCol = IM_COL32(
-                (int)((colA.x + colB.x) * 0.5f * 255),
-                (int)((colA.y + colB.y) * 0.5f * 255),
-                (int)((colA.z + colB.z) * 0.5f * 255), 200);
+            ImVec4 colA = nodeColor(a, pal);
+            ImVec4 colB = nodeColor(b, pal);
+            ImVec4 blend(
+                (colA.x + colB.x) * 0.5f,
+                (colA.y + colB.y) * 0.5f,
+                (colA.z + colB.z) * 0.5f,
+                hasSearch ? 0.35f : 0.78f
+            );
+            edgeCol = toCol32(blend);
         } else {
-            edgeCol = IM_COL32(45, 55, 90, 100);
+            edgeCol = toCol32(pal.textMuted, hasSearch ? 0.14f : 0.34f);
         }
         float thickness = (dimA || dimB)
             ? std::max(0.8f, 1.8f * m_zoom) : std::max(0.5f, 1.0f * m_zoom);
@@ -267,7 +407,8 @@ void GraphPanel::render2D(App& app) {
     int hoveredNode = -1;
     int nodesDrawn = 0;
 
-    for (int i = 0; i < (int)nodes.size(); ++i) {
+    for (int i = 0; i < nodeCount; ++i) {
+        if (!visibleMask[i]) continue;
         const auto& node = nodes[i];
         ImVec2 sp = graphToScreen(node.x, node.y);
         float sr = node.radius * m_zoom;
@@ -276,49 +417,63 @@ void GraphPanel::render2D(App& app) {
 
         float dx = mousePos.x - sp.x;
         float dy = mousePos.y - sp.y;
-        bool nodeHov = (dx * dx + dy * dy) <= ((sr + 4) * (sr + 4)) && hovered;
+        bool nodeHov = (dx * dx + dy * dy) <= ((sr + 4.0f) * (sr + 4.0f)) && hovered;
         if (nodeHov) hoveredNode = i;
 
+        Note* notePtr = app.getNoteManager().getNoteById(node.noteId);
         bool isSelected = (node.noteId == app.selectedNoteId);
-        ImVec4 col4 = nodeColor(node);
-        ImU32 col = toCol32(col4);
+        bool isSearchHit = hasSearch && nodeMatchesSearch(node, notePtr, searchLower);
+        float nodeAlpha = (!hasSearch || isSearchHit || isSelected) ? 0.95f : 0.22f;
+
+        ImVec4 col4 = nodeColor(node, pal);
+        ImU32 col = toCol32(col4, nodeAlpha);
 
         if (lodLevel == 0) {
-            float extraGlow = std::min((float)node.connectionCount * 2.5f, 18.0f) * m_zoom;
+            float extraGlow = std::min(static_cast<float>(node.connectionCount) * 2.5f, 18.0f) * m_zoom;
             if (isSelected) {
-                dl->AddCircleFilled(sp, sr + extraGlow + 14.0f * m_zoom, toCol32(col4, 0.07f), circleSegments);
-                dl->AddCircleFilled(sp, sr + extraGlow + 8.0f * m_zoom, toCol32(col4, 0.14f), circleSegments);
-                dl->AddCircleFilled(sp, sr + extraGlow + 4.0f * m_zoom, toCol32(col4, 0.22f), circleSegments);
+                dl->AddCircleFilled(sp, sr + extraGlow + 14.0f * m_zoom, toCol32(pal.accent, 0.08f), circleSegments);
+                dl->AddCircleFilled(sp, sr + extraGlow + 8.0f * m_zoom, toCol32(pal.accent, 0.16f), circleSegments);
+                dl->AddCircleFilled(sp, sr + extraGlow + 4.0f * m_zoom, toCol32(pal.accent, 0.24f), circleSegments);
             }
-            if (extraGlow > 1.0f) {
+            if (isSearchHit) {
+                dl->AddCircleFilled(sp, sr + 12.0f * m_zoom, toCol32(pal.warning, 0.20f), circleSegments);
+                dl->AddCircle(sp, sr + 6.0f * m_zoom, toCol32(pal.warning, 0.95f), circleSegments, 2.2f);
+            }
+            if (extraGlow > 1.0f && nodeAlpha > 0.5f) {
                 dl->AddCircleFilled(sp, sr + extraGlow, toCol32(col4, 0.08f), circleSegments);
-                dl->AddCircleFilled(sp, sr + extraGlow * 0.55f, toCol32(col4, 0.18f), circleSegments);
-                dl->AddCircleFilled(sp, sr + extraGlow * 0.25f, toCol32(col4, 0.30f), circleSegments);
+                dl->AddCircleFilled(sp, sr + extraGlow * 0.55f, toCol32(col4, 0.16f), circleSegments);
             }
+        } else if (isSearchHit) {
+            dl->AddCircle(sp, sr + 4.0f, toCol32(pal.warning, 0.95f), circleSegments, 2.0f);
         }
 
         if (nodeHov) {
-            dl->AddCircleFilled(sp, sr + 6.0f * m_zoom, IM_COL32(240, 245, 255, 28), circleSegments);
+            dl->AddCircleFilled(sp, sr + 6.0f * m_zoom, toCol32(pal.textPrimary, 0.14f), circleSegments);
         }
         dl->AddCircleFilled(sp, sr, col, circleSegments);
 
         if (lodLevel <= 1) {
-            ImU32 borderCol = isSelected ? IM_COL32(150, 225, 220, 230) : toCol32(col4, 0.55f);
-            float borderW = isSelected ? 1.8f : 1.2f;
+            ImU32 borderCol = isSelected
+                ? toCol32(pal.accent, 0.95f)
+                : (isSearchHit ? toCol32(pal.warning, 0.95f) : toCol32(col4, 0.55f * nodeAlpha));
+            float borderW = (isSelected || isSearchHit) ? 2.0f : 1.2f;
             dl->AddCircle(sp, sr, borderCol, circleSegments, borderW);
         }
 
-        if (lodLevel <= 1) {
-            float labelAlpha = m_zoom >= 0.6f ? 1.0f : m_zoom >= 0.4f ? (m_zoom - 0.4f) / 0.2f : 0.0f;
-            if (labelAlpha > 0.01f) {
+        if (lodLevel <= 1 || isSearchHit || isSelected) {
+            float labelAlpha = (isSearchHit || isSelected)
+                ? 1.0f
+                : (m_zoom >= 0.6f ? 1.0f : m_zoom >= 0.4f ? (m_zoom - 0.4f) / 0.2f : 0.0f);
+            labelAlpha *= nodeAlpha;
+            if (labelAlpha > 0.02f) {
                 const char* label = node.noteId.c_str();
                 ImVec2 textSz = ImGui::CalcTextSize(label);
-                ImVec2 textPos { sp.x - textSz.x * 0.5f, sp.y + sr + 15.0f };
-                dl->AddText(ImVec2(textPos.x + 1, textPos.y + 1),
-                            IM_COL32(0, 0, 0, (int)(140 * labelAlpha)), label);
-                ImU32 textCol = isSelected
-                    ? IM_COL32(180, 235, 230, (int)(240 * labelAlpha))
-                    : IM_COL32(170, 175, 200, (int)(190 * labelAlpha));
+                ImVec2 textPos { sp.x - textSz.x * 0.5f, sp.y + sr + 10.0f };
+                dl->AddText(ImVec2(textPos.x + 1.0f, textPos.y + 1.0f),
+                            toCol32(pal.bgBase, 0.65f * labelAlpha), label);
+                ImU32 textCol = isSearchHit
+                    ? toCol32(pal.warning, labelAlpha)
+                    : (isSelected ? toCol32(pal.textPrimary, labelAlpha) : toCol32(pal.textSecondary, labelAlpha));
                 dl->AddText(textPos, textCol, label);
             }
         }
@@ -327,83 +482,100 @@ void GraphPanel::render2D(App& app) {
     m_lodLevel = lodLevel;
     m_nodesVisible = nodesDrawn;
 
-    if (m_draggedNode >= (int)nodes.size()) m_draggedNode = -1;
+    if (m_draggedNode >= nodeCount) m_draggedNode = -1;
 
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
         m_draggedNode = hoveredNode;
-        if (hoveredNode >= 0 && hoveredNode < (int)nodes.size())
+        if (hoveredNode >= 0 && hoveredNode < nodeCount) {
             app.selectedNoteId = nodes[hoveredNode].noteId;
+            m_isPanning = false;
+        } else {
+            m_isPanning = true;
+        }
     }
-    if (ImGui::IsMouseDragging(ImGuiMouseButton_Left, 2.0f) && m_draggedNode >= 0 && m_draggedNode < (int)nodes.size()) {
-        auto& n = graph.getNodes()[m_draggedNode];
-        auto gp = screenToGraph(mousePos.x, mousePos.y);
-        n.x = gp.x;
-        n.y = gp.y;
-        n.pinned = true;
+    if (ImGui::IsMouseDragging(ImGuiMouseButton_Left, 2.0f)) {
+        if (m_draggedNode >= 0 && m_draggedNode < nodeCount) {
+            auto& n = graph.getNodes()[m_draggedNode];
+            auto gp = screenToGraph(mousePos.x, mousePos.y);
+            n.x = gp.x;
+            n.y = gp.y;
+            n.pinned = true;
+        } else if (m_isPanning && hovered) {
+            m_panX += io.MouseDelta.x;
+            m_panY += io.MouseDelta.y;
+            m_autoCenter = false;
+        }
     }
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-        if (m_draggedNode >= 0 && m_draggedNode < (int)graph.getNodes().size())
+        if (m_draggedNode >= 0 && m_draggedNode < static_cast<int>(graph.getNodes().size()))
             graph.getNodes()[m_draggedNode].pinned = false;
         m_draggedNode = -1;
+        m_isPanning = false;
     }
 
     {
         const float ox = canvasEnd.x - 155.0f;
         float oy = canvasOrig.y + 8.0f;
-        dl->AddRectFilled({ ox - 6, oy - 4 }, { canvasEnd.x - 4, oy + 130 },
-                          IM_COL32(8, 9, 14, 200), 5.0f);
+        dl->AddRectFilled({ ox - 8.0f, oy - 6.0f }, { canvasEnd.x - 6.0f, oy + 132.0f },
+                          toCol32(pal.bgPopover, 0.88f), 8.0f);
+        dl->AddRect({ ox - 8.0f, oy - 6.0f }, { canvasEnd.x - 6.0f, oy + 132.0f },
+                    toCol32(pal.borderLine, 0.70f), 8.0f);
 
         struct LegendEntry { const char* label; ImU32 col; };
         LegendEntry legend[] = {
-            { "proyecto",    toCol32(typeColor("proyecto"))   },
-            { "concepto",    toCol32(typeColor("concepto"))   },
-            { "referencia",  toCol32(typeColor("referencia")) },
-            { "diario",      toCol32(typeColor("diario"))     },
-            { "tarea",       toCol32(typeColor("tarea"))      },
-            { "0-1 enlaces", toCol32(connectivityColor(0))    },
-            { "6+  enlaces", toCol32(connectivityColor(6))    },
+            { "proyecto",    toCol32(typeColor("proyecto", pal))   },
+            { "concepto",    toCol32(typeColor("concepto", pal))   },
+            { "referencia",  toCol32(typeColor("referencia", pal)) },
+            { "diario",      toCol32(typeColor("diario", pal))     },
+            { "tarea",       toCol32(typeColor("tarea", pal))      },
+            { "0-1 enlaces", toCol32(connectivityColor(0, pal))    },
+            { "6+ enlaces",  toCol32(connectivityColor(6, pal))    },
         };
         for (auto& e : legend) {
-            dl->AddCircleFilled({ ox + 8, oy + 7 }, 5.0f, e.col, 20);
-            dl->AddText({ ox + 18, oy }, IM_COL32(140, 145, 170, 200), e.label);
+            dl->AddCircleFilled({ ox + 6.0f, oy + 7.0f }, 4.5f, e.col, 20);
+            dl->AddText({ ox + 16.0f, oy }, toCol32(pal.textSecondary, 0.92f), e.label);
             oy += 18.0f;
         }
     }
 
     dl->PopClipRect();
 
-    if (hoveredNode >= 0 && hoveredNode < (int)nodes.size() && m_draggedNode < 0) {
+    if (hoveredNode >= 0 && hoveredNode < nodeCount && m_draggedNode < 0) {
         const auto& node = nodes[hoveredNode];
         auto* note = app.getNoteManager().getNoteById(node.noteId);
         ImGui::BeginTooltip();
-        ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f), "%s", node.noteId.c_str());
+        ImGui::TextColored(pal.accent, "%s", node.noteId.c_str());
         if (note) {
-            ImGui::TextColored(ImVec4(0.50f, 0.52f, 0.65f, 1.0f),
-                               "Conexiones: %d", node.connectionCount);
+            ImGui::TextColored(pal.textMuted, "Conexiones: %d", node.connectionCount);
             if (!node.nodeType.empty()) {
-                ImVec4 tc = typeColor(node.nodeType);
+                ImVec4 tc = typeColor(node.nodeType, pal);
                 if (tc.x >= 0.0f) ImGui::TextColored(tc, "Tipo: %s", node.nodeType.c_str());
             }
             std::string preview = note->content.substr(0, 180);
             if (note->content.size() > 180) preview += "...";
             if (!preview.empty()) {
                 ImGui::Separator();
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.68f, 0.70f, 0.80f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Text, pal.textSecondary);
                 ImGui::TextWrapped("%s", preview.c_str());
                 ImGui::PopStyleColor();
             }
         } else {
-            ImGui::TextColored(ImVec4(0.88f, 0.48f, 0.32f, 1.0f), "(Nota no creada aun)");
+            ImGui::TextColored(pal.warning, "(Nota no creada aun)");
         }
         ImGui::EndTooltip();
     }
 }
 
 void GraphPanel::render3D(App& app) {
+    const ThemePalette& pal = UITheme::palette();
     auto& graph = app.getGraph();
     auto& nodes = graph.getNodes();
     auto& edges = graph.getEdges();
     ImGuiIO& io = ImGui::GetIO();
+
+    std::vector<bool> visibleMask = computeVisibleMask(nodes, edges, app.selectedNoteId, g_graphDepthFilter);
+    std::string searchLower = toLowerStr(g_graphSearchBuf);
+    bool hasSearch = !searchLower.empty();
 
     ImVec2 canvasOrig = ImGui::GetCursorScreenPos();
     ImVec2 canvasSize = ImGui::GetContentRegionAvail();
@@ -419,7 +591,6 @@ void GraphPanel::render3D(App& app) {
     if (hovered && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 2.0f) && m_draggedNode < 0) {
         m_camYaw   += io.MouseDelta.x * 0.005f;
         m_camPitch += io.MouseDelta.y * 0.005f;
-
         if (m_camPitch > 1.5f) m_camPitch = 1.5f;
         if (m_camPitch < -1.5f) m_camPitch = -1.5f;
     }
@@ -438,20 +609,20 @@ void GraphPanel::render3D(App& app) {
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
     dl->PushClipRect(canvasOrig, canvasEnd, true);
-
-    dl->AddRectFilled(canvasOrig, canvasEnd, IM_COL32(6, 7, 12, 255));
+    dl->AddRectFilled(canvasOrig, canvasEnd, toCol32(pal.bgBase, 1.0f));
 
     struct NodeProj {
-        int   idx;
+        int idx;
         float sx, sy, depth, scale;
     };
     std::vector<NodeProj> projNodes;
     projNodes.reserve(nodes.size());
 
-    for (int i = 0; i < (int)nodes.size(); ++i) {
+    int nodeCount = static_cast<int>(nodes.size());
+    for (int i = 0; i < nodeCount; ++i) {
         const auto& node = nodes[i];
         auto p = project3D(node.x, node.y, node.z,
-                          canvasOrig.x, canvasOrig.y, canvasSize.x, canvasSize.y);
+                           canvasOrig.x, canvasOrig.y, canvasSize.x, canvasSize.y);
         projNodes.push_back({ i, p.sx, p.sy, p.depth, p.scale });
     }
 
@@ -462,29 +633,32 @@ void GraphPanel::render3D(App& app) {
     });
 
     for (const auto& edge : edges) {
-        if (edge.from < 0 || edge.from >= (int)nodes.size() || edge.from >= (int)projNodes.size()) continue;
-        if (edge.to < 0 || edge.to >= (int)nodes.size() || edge.to >= (int)projNodes.size()) continue;
+        if (edge.from < 0 || edge.from >= nodeCount || edge.from >= static_cast<int>(projNodes.size())) continue;
+        if (edge.to < 0 || edge.to >= nodeCount || edge.to >= static_cast<int>(projNodes.size())) continue;
+        if (!visibleMask[edge.from] || !visibleMask[edge.to]) continue;
 
         const auto& pa = projNodes[edge.from];
         const auto& pb = projNodes[edge.to];
 
         float avgDepth = (pa.depth + pb.depth) * 0.5f;
-        float depthAlpha = std::max(0.05f, std::min(1.0f, 1.0f - (avgDepth - 200.0f) / 1500.0f));
+        float depthAlpha = std::max(0.08f, std::min(1.0f, 1.0f - (avgDepth - 200.0f) / 1500.0f));
 
         bool sel = (nodes[edge.from].noteId == app.selectedNoteId) ||
                    (nodes[edge.to].noteId == app.selectedNoteId);
 
-        int alpha = (int)(depthAlpha * (sel ? 180.0f : 80.0f));
         ImU32 edgeCol;
         if (sel) {
-            ImVec4 colA = nodeColor(nodes[edge.from]);
-            ImVec4 colB = nodeColor(nodes[edge.to]);
-            edgeCol = IM_COL32(
-                (int)((colA.x + colB.x) * 0.5f * 255),
-                (int)((colA.y + colB.y) * 0.5f * 255),
-                (int)((colA.z + colB.z) * 0.5f * 255), alpha);
+            ImVec4 colA = nodeColor(nodes[edge.from], pal);
+            ImVec4 colB = nodeColor(nodes[edge.to], pal);
+            ImVec4 blend(
+                (colA.x + colB.x) * 0.5f,
+                (colA.y + colB.y) * 0.5f,
+                (colA.z + colB.z) * 0.5f,
+                depthAlpha * (hasSearch ? 0.35f : 0.72f)
+            );
+            edgeCol = toCol32(blend);
         } else {
-            edgeCol = IM_COL32(45, 55, 90, alpha);
+            edgeCol = toCol32(pal.textMuted, depthAlpha * (hasSearch ? 0.12f : 0.30f));
         }
 
         float thickness = std::max(0.5f, 1.2f * (pa.scale + pb.scale) * 0.5f * 15.0f);
@@ -495,6 +669,7 @@ void GraphPanel::render3D(App& app) {
 
     for (int di : drawOrder) {
         const auto& pn = projNodes[di];
+        if (!visibleMask[pn.idx]) continue;
         const auto& node = nodes[pn.idx];
 
         float sr = node.radius * pn.scale * 15.0f;
@@ -509,41 +684,50 @@ void GraphPanel::render3D(App& app) {
 
         float dx = mousePos.x - pn.sx;
         float dy = mousePos.y - pn.sy;
-        if (hovered && (dx * dx + dy * dy) <= ((sr + 4) * (sr + 4))) {
+        if (hovered && (dx * dx + dy * dy) <= ((sr + 4.0f) * (sr + 4.0f))) {
             hoveredNode = pn.idx;
         }
 
+        Note* notePtr = app.getNoteManager().getNoteById(node.noteId);
         bool isSelected = (node.noteId == app.selectedNoteId);
-        ImVec4 col4 = nodeColor(node);
+        bool isSearchHit = hasSearch && nodeMatchesSearch(node, notePtr, searchLower);
+        float searchMul = (!hasSearch || isSearchHit || isSelected) ? 1.0f : 0.22f;
 
+        ImVec4 col4 = nodeColor(node, pal);
         int segments = (sr > 10.0f) ? 24 : (sr > 4.0f) ? 16 : 8;
 
         if (isSelected) {
             dl->AddCircleFilled({ pn.sx, pn.sy }, sr + 10.0f * depthAlpha,
-                                toCol32(col4, 0.12f * depthAlpha), segments);
+                                toCol32(pal.accent, 0.14f * depthAlpha), segments);
             dl->AddCircleFilled({ pn.sx, pn.sy }, sr + 5.0f * depthAlpha,
-                                toCol32(col4, 0.25f * depthAlpha), segments);
+                                toCol32(pal.accent, 0.26f * depthAlpha), segments);
+        }
+        if (isSearchHit) {
+            dl->AddCircleFilled({ pn.sx, pn.sy }, sr + 10.0f * depthAlpha,
+                                toCol32(pal.warning, 0.22f * depthAlpha), segments);
+            dl->AddCircle({ pn.sx, pn.sy }, sr + 5.0f * depthAlpha,
+                          toCol32(pal.warning, 0.95f * depthAlpha), segments, 2.0f);
         }
 
         dl->AddCircleFilled({ pn.sx, pn.sy }, sr,
-                            toCol32(col4, depthAlpha * col4.w), segments);
+                            toCol32(col4, depthAlpha * col4.w * searchMul), segments);
 
         ImU32 borderCol = isSelected
-            ? IM_COL32(150, 225, 220, (int)(200 * depthAlpha))
-            : toCol32(col4, 0.4f * depthAlpha);
-        dl->AddCircle({ pn.sx, pn.sy }, sr, borderCol, segments, 1.2f);
+            ? toCol32(pal.accent, 0.85f * depthAlpha)
+            : (isSearchHit ? toCol32(pal.warning, 0.95f * depthAlpha) : toCol32(col4, 0.45f * depthAlpha * searchMul));
+        dl->AddCircle({ pn.sx, pn.sy }, sr, borderCol, segments, (isSelected || isSearchHit) ? 1.8f : 1.2f);
 
-        if (sr > 6.0f && depthAlpha > 0.3f) {
+        if ((sr > 6.0f && depthAlpha > 0.3f) || isSearchHit || isSelected) {
             const char* label = node.noteId.c_str();
             ImVec2 textSz = ImGui::CalcTextSize(label);
             ImVec2 textPos { pn.sx - textSz.x * 0.5f, pn.sy + sr + 4.0f };
 
-            int textAlpha = (int)(depthAlpha * 190.0f);
-            dl->AddText(ImVec2(textPos.x + 1, textPos.y + 1),
-                        IM_COL32(0, 0, 0, textAlpha / 2), label);
-            ImU32 textCol = isSelected
-                ? IM_COL32(180, 235, 230, textAlpha)
-                : IM_COL32(170, 175, 200, textAlpha);
+            float textAlpha = depthAlpha * searchMul;
+            dl->AddText(ImVec2(textPos.x + 1.0f, textPos.y + 1.0f),
+                        toCol32(pal.bgBase, 0.55f * textAlpha), label);
+            ImU32 textCol = isSearchHit
+                ? toCol32(pal.warning, textAlpha)
+                : (isSelected ? toCol32(pal.textPrimary, textAlpha) : toCol32(pal.textSecondary, textAlpha));
             dl->AddText(textPos, textCol, label);
         }
     }
@@ -555,52 +739,54 @@ void GraphPanel::render3D(App& app) {
         float cosY = std::cos(m_camYaw), sinY = std::sin(m_camYaw);
         float cosP = std::cos(m_camPitch), sinP = std::sin(m_camPitch);
 
-        float x1 = axLen * cosY, z1 = axLen * -sinY;
-        dl->AddLine({ bx, by }, { bx + x1, by }, IM_COL32(220, 60, 60, 200), 2.0f);
-        dl->AddText({ bx + x1 + 2, by - 6 }, IM_COL32(220, 60, 60, 200), "X");
+        float x1 = axLen * cosY;
+        dl->AddLine({ bx, by }, { bx + x1, by }, toCol32(pal.danger, 0.85f), 2.0f);
+        dl->AddText({ bx + x1 + 2.0f, by - 6.0f }, toCol32(pal.danger, 0.85f), "X");
 
         float y2 = -axLen * cosP;
-        dl->AddLine({ bx, by }, { bx, by + y2 }, IM_COL32(60, 220, 60, 200), 2.0f);
-        dl->AddText({ bx + 4, by + y2 - 6 }, IM_COL32(60, 220, 60, 200), "Y");
+        dl->AddLine({ bx, by }, { bx, by + y2 }, toCol32(pal.success, 0.85f), 2.0f);
+        dl->AddText({ bx + 4.0f, by + y2 - 6.0f }, toCol32(pal.success, 0.85f), "Y");
 
         float x3 = axLen * sinY, y3 = -axLen * sinP;
-        dl->AddLine({ bx, by }, { bx + x3, by + y3 }, IM_COL32(60, 120, 220, 200), 2.0f);
-        dl->AddText({ bx + x3 + 2, by + y3 - 6 }, IM_COL32(60, 120, 220, 200), "Z");
+        dl->AddLine({ bx, by }, { bx + x3, by + y3 }, toCol32(pal.accent, 0.85f), 2.0f);
+        dl->AddText({ bx + x3 + 2.0f, by + y3 - 6.0f }, toCol32(pal.accent, 0.85f), "Z");
     }
 
     {
-        const float ox = canvasEnd.x - 155.0f;
+        const float ox = canvasEnd.x - 165.0f;
         float oy = canvasOrig.y + 8.0f;
-        dl->AddRectFilled({ ox - 6, oy - 4 }, { canvasEnd.x - 4, oy + 58 },
-                          IM_COL32(8, 9, 14, 200), 5.0f);
-        dl->AddText({ ox, oy }, IM_COL32(140, 145, 170, 200), "Arrastrar: rotar");
+        dl->AddRectFilled({ ox - 8.0f, oy - 6.0f }, { canvasEnd.x - 6.0f, oy + 56.0f },
+                          toCol32(pal.bgPopover, 0.88f), 8.0f);
+        dl->AddRect({ ox - 8.0f, oy - 6.0f }, { canvasEnd.x - 6.0f, oy + 56.0f },
+                    toCol32(pal.borderLine, 0.70f), 8.0f);
+        dl->AddText({ ox, oy }, toCol32(pal.textSecondary, 0.90f), "Arrastrar: rotar");
         oy += 16.0f;
-        dl->AddText({ ox, oy }, IM_COL32(140, 145, 170, 200), "Scroll: zoom");
+        dl->AddText({ ox, oy }, toCol32(pal.textSecondary, 0.90f), "Scroll: zoom");
         oy += 16.0f;
-        dl->AddText({ ox, oy }, IM_COL32(140, 145, 170, 200), "Click: seleccionar");
+        dl->AddText({ ox, oy }, toCol32(pal.textSecondary, 0.90f), "Click: seleccionar");
     }
 
     dl->PopClipRect();
 
-    if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && hoveredNode >= 0 && hoveredNode < (int)nodes.size()) {
+    if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && hoveredNode >= 0 && hoveredNode < nodeCount) {
         app.selectedNoteId = nodes[hoveredNode].noteId;
         m_draggedNode = -1;
     }
 
-    if (hoveredNode >= 0 && hoveredNode < (int)nodes.size()) {
+    if (hoveredNode >= 0 && hoveredNode < nodeCount) {
         const auto& node = nodes[hoveredNode];
         auto* note = app.getNoteManager().getNoteById(node.noteId);
         ImGui::BeginTooltip();
-        ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f), "%s", node.noteId.c_str());
+        ImGui::TextColored(pal.accent, "%s", node.noteId.c_str());
         if (note) {
-            ImGui::TextColored(ImVec4(0.50f, 0.52f, 0.65f, 1.0f),
+            ImGui::TextColored(pal.textMuted,
                                "Conexiones: %d | Pos: (%.0f, %.0f, %.0f)",
                                node.connectionCount, node.x, node.y, node.z);
             std::string preview = note->content.substr(0, 120);
             if (note->content.size() > 120) preview += "...";
             if (!preview.empty()) {
                 ImGui::Separator();
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.68f, 0.70f, 0.80f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Text, pal.textSecondary);
                 ImGui::TextWrapped("%s", preview.c_str());
                 ImGui::PopStyleColor();
             }
