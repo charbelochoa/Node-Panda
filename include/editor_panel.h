@@ -13,12 +13,12 @@ public:
     void render(App& app);
 
 private:
-    
-    void         renderPandaBanner(App& app);
-    unsigned int m_pandaTexId  = 0;     
-    bool         m_pandaLoaded = false; 
 
-    static constexpr size_t BUFFER_SIZE = 1024 * 64; 
+    void         renderPandaBanner(App& app);
+    unsigned int m_pandaTexId  = 0;
+    bool         m_pandaLoaded = false;
+
+    static constexpr size_t BUFFER_SIZE = 1024 * 64;
     char m_editBuffer[BUFFER_SIZE] = {};
     std::string m_currentNoteId;
     bool m_previewMode = false;
@@ -31,19 +31,17 @@ private:
     std::string m_backlinksCachedId;
     std::vector<std::string> m_cachedBacklinks;
 
-    
     struct LuaCodeBlock {
         std::string code;
-        size_t      startLine;  
+        size_t      startLine;
     };
     std::vector<LuaCodeBlock> parseLuaBlocks(const std::string& content);
 
-    
     int         m_exportDepth          = 1;
-    int         m_exportCachedDepth    = -1;  
+    int         m_exportCachedDepth    = -1;
     std::string m_exportCachedNoteId;
     int         m_exportNoteCount      = 0;
     bool        m_justCopied           = false;
 };
 
-} 
+}
