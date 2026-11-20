@@ -1,0 +1,12 @@
+{
+  "name": "DB Monitor",
+  "id": "db_monitor",
+  "version": "1.0.0",
+  "author": "NodePanda",
+  "description": "Supervisa metricas de notas, grafo, FPS y memoria RAM del workspace en tiempo real.",
+  "hooks": [
+    "on_load",
+    "on_frame"
+  ],
+  "enabled": true
+}
