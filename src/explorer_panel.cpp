@@ -1,5 +1,3 @@
-
-
 #include "explorer_panel.h"
 #include "plugin_manager.h"
 #include "imgui.h"
@@ -11,9 +9,9 @@ namespace nodepanda {
 
 static ImVec4 noteTypeColor(const std::string& tipo) {
     if (tipo == "proyecto") return ImVec4(0.35f, 0.75f, 1.00f, 1.0f);
-    if (tipo == "concepto") return ImVec4(0.55f, 0.90f, 0.55f, 1.0f); 
-    if (tipo == "agente")   return ImVec4(0.90f, 0.65f, 0.25f, 1.0f); 
-    return                         ImVec4(0.60f, 0.62f, 0.72f, 1.0f); 
+    if (tipo == "concepto") return ImVec4(0.55f, 0.90f, 0.55f, 1.0f);
+    if (tipo == "agente")   return ImVec4(0.90f, 0.65f, 0.25f, 1.0f);
+    return                         ImVec4(0.60f, 0.62f, 0.72f, 1.0f);
 }
 
 static const char* noteTypeTag(const std::string& tipo) {
@@ -22,7 +20,6 @@ static const char* noteTypeTag(const std::string& tipo) {
     if (tipo == "agente")   return "[A]";
     return                         " - ";
 }
-
 
 void ExplorerPanel::render(App& app) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f));
@@ -70,7 +67,6 @@ void ExplorerPanel::render(App& app) {
     ImGui::PopStyleColor();
     ImGui::Spacing();
 
-    
     auto results = nm.searchNotes(std::string(m_searchBuffer));
 
     std::map<std::string, std::vector<Note*>> byFolder;
@@ -86,16 +82,15 @@ void ExplorerPanel::render(App& app) {
         std::sort(notes.begin(), notes.end(),
                   [](const Note* a, const Note* b){ return a->id < b->id; });
 
-    
     ImGui::BeginChild("##note_list", ImVec2(0, -1), false,
                       ImGuiWindowFlags_HorizontalScrollbar);
 
     for (auto& [folder, notes] : byFolder) {
         bool inRoot   = folder.empty();
-        bool treeOpen = inRoot; 
+        bool treeOpen = inRoot;
 
         if (!inRoot) {
-            
+
             ImGui::PushStyleColor(ImGuiCol_Text,        ImVec4(0.55f, 0.58f, 0.72f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_Header,      ImVec4(0.10f, 0.12f, 0.20f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_HeaderHovered,ImVec4(0.14f, 0.18f, 0.28f, 1.0f));
@@ -114,7 +109,6 @@ void ExplorerPanel::render(App& app) {
                 ImVec4 typeCol          = noteTypeColor(tipo);
                 const char* tag         = noteTypeTag(tipo);
 
-                
                 ImVec2 p0 = ImGui::GetCursorScreenPos();
                 p0.x += inRoot ? 4.0f : 18.0f;
                 p0.y += 4.0f;
@@ -123,17 +117,15 @@ void ExplorerPanel::render(App& app) {
                     ImVec2(p0.x + 3.0f, p0.y + 10.0f),
                     ImGui::ColorConvertFloat4ToU32(typeCol), 2.0f);
 
-                
                 std::string label = std::string("    ") + tag + " ";
                 if (note->dirty) label = "* " + label;
                 label += note->id;
 
-                
                 ImVec4 textCol = isSelected
-                    ? ImVec4(0.28f, 0.88f, 0.82f, 1.0f)   
-                    : ImVec4(0.78f, 0.80f, 0.88f, 1.0f);  
+                    ? ImVec4(0.28f, 0.88f, 0.82f, 1.0f)
+                    : ImVec4(0.78f, 0.80f, 0.88f, 1.0f);
                 if (note->dirty)
-                    textCol = ImVec4(0.88f, 0.75f, 0.28f, 1.0f); 
+                    textCol = ImVec4(0.88f, 0.75f, 0.28f, 1.0f);
 
                 ImGui::PushStyleColor(ImGuiCol_Text, textCol);
                 ImGui::PushStyleColor(ImGuiCol_Header,
@@ -149,7 +141,6 @@ void ExplorerPanel::render(App& app) {
                 }
                 ImGui::PopStyleColor(3);
 
-                
                 if (ImGui::BeginPopupContextItem("##ctx")) {
                     if (ImGui::MenuItem("Eliminar nota...")) {
                         m_deleteTargetId  = note->id;
@@ -158,7 +149,6 @@ void ExplorerPanel::render(App& app) {
                     ImGui::EndPopup();
                 }
 
-                
                 if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
                     ImGui::BeginTooltip();
                     ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f),
@@ -190,18 +180,15 @@ void ExplorerPanel::render(App& app) {
         }
     }
 
-    
     ImGui::Spacing();
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 0.36f, 0.46f, 1.0f));
     ImGui::Text("  %d nota(s)", (int)results.size());
     ImGui::PopStyleColor();
 
-    ImGui::EndChild(); 
+    ImGui::EndChild();
 
-    
     ImVec2 mc = ImGui::GetMainViewport()->GetCenter();
 
-    
     if (m_showNewNoteDialog) ImGui::OpenPopup("Nueva Nota");
     ImGui::SetNextWindowPos(mc, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     if (ImGui::BeginPopupModal("Nueva Nota", &m_showNewNoteDialog,
@@ -238,7 +225,6 @@ void ExplorerPanel::render(App& app) {
         ImGui::EndPopup();
     }
 
-    
     if (m_showNewFolderDialog) ImGui::OpenPopup("Nueva Carpeta");
     ImGui::SetNextWindowPos(mc, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     if (ImGui::BeginPopupModal("Nueva Carpeta", &m_showNewFolderDialog,
@@ -299,4 +285,4 @@ void ExplorerPanel::render(App& app) {
     ImGui::End();
 }
 
-} 
+}
