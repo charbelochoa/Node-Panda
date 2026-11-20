@@ -1,11 +1,14 @@
 #include "http_panel.h"
 #include "app.h"
+#include "ui_components.h"
+#include "ui_theme.h"
 #include "imgui.h"
 
 namespace nodepanda {
 
 void HttpPanel::render(App& app) {
-    ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+    const auto& pal = UITheme::palette();
+    ImGui::SetNextWindowSize(ImVec2(640, 460), ImGuiCond_FirstUseEver);
 
     if (!ImGui::Begin("Servidor API")) {
         ImGui::End();
@@ -15,95 +18,64 @@ void HttpPanel::render(App& app) {
     auto& httpServer = app.getHttpServer();
     bool isRunning = httpServer.isRunning();
 
-    ImVec4 statusColor = isRunning ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f) : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
-    ImGui::TextColored(statusColor, isRunning ? "Estado: ACTIVO" : "Estado: INACTIVO");
-    ImGui::SameLine();
-    ImGui::TextDisabled("(servidor HTTP)");
+    ui::statusDot(isRunning ? "Servidor activo" : "Servidor detenido",
+                  isRunning ? pal.success : pal.danger, isRunning);
+    ImGui::SameLine(0.0f, 12.0f);
+    char urlBuf[128];
+    std::snprintf(urlBuf, sizeof(urlBuf), "http://%s:%d",
+                  httpServer.getBindHost().c_str(), httpServer.getPort());
+    ui::badge(urlBuf, pal.accentSoft, pal.accent);
 
     ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    ImGui::Text("Puerto: %d", httpServer.getPort());
-    ImGui::SameLine();
-    ImGui::TextDisabled("(localhost:%d)", httpServer.getPort());
-
-    ImGui::Spacing();
-
-    ImGui::Text("URL Base:");
-    ImGui::SameLine();
-    ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "http://localhost:%d", httpServer.getPort());
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
     if (!isRunning) {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
-        if (ImGui::Button("Iniciar Servidor", ImVec2(200, 0))) {
+        if (ui::primaryButton("Iniciar Servidor", ImVec2(180, 0))) {
             httpServer.start(&app, httpServer.getPort());
         }
-        ImGui::PopStyleColor();
     } else {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.0f, 0.0f, 1.0f));
-        if (ImGui::Button("Detener Servidor", ImVec2(200, 0))) {
+        if (ui::dangerButton("Detener Servidor", ImVec2(180, 0))) {
             httpServer.stop();
         }
-        ImGui::PopStyleColor();
     }
 
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
-    ImGui::Text("Endpoints Disponibles:");
-    ImGui::Spacing();
+    const char* rows[][2] = {
+        {"GET /api/health", "Estado del servicio"},
+        {"GET /api/snapshot", "Resumen global del sistema"},
+        {"GET /api/notas", "Lista todas las notas"},
+        {"GET /api/notas/{id}", "Contenido completo de nota"},
+        {"GET /api/grafo", "Nodos y aristas del grafo"},
+        {"GET /api/memoria/buscar?q=...", "Busqueda semantica TF-IDF"},
+        {"GET /api/v1/blocks", "Bloques jerarquicos del outliner"},
+        {"POST /api/v1/blocks", "Crear bloque en una pagina"},
+        {"GET /api/v1/tasks", "Lista de tareas"},
+        {"POST /api/v1/datalog", "Ejecutar consulta Datalog"},
+        {"GET /api/v1/sync", "Estado y checksum de sincronizacion"},
+        {"GET /api/runs", "Misiones de agentes IA"},
+        {"POST /api/runs", "Lanzar mision multi-agente"},
+        {"GET /api/messages?room=...", "Mensajes de sala de agentes"},
+        {"POST /api/messages", "Enviar mensaje a sala"},
+        {"GET /api/skills", "Skills activas"},
+        {"POST /api/context/retrieve", "Recuperacion de contexto"},
+        {"GET /api/db/status", "Estado de PostgreSQL / MySQL"},
+        {"POST /api/auth/login", "Autenticacion con token"}
+    };
 
-    if (ImGui::BeginTable("##endpoints", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-        ImGui::TableSetupColumn("Endpoint", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Descripción", ImGuiTableColumnFlags_WidthStretch);
+    if (ImGui::BeginTable("##endpoints", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+        ImGui::TableSetupColumn("Endpoint", ImGuiTableColumnFlags_WidthStretch, 0.48f);
+        ImGui::TableSetupColumn("Funcion", ImGuiTableColumnFlags_WidthStretch, 0.52f);
         ImGui::TableHeadersRow();
-
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::TextColored(ImVec4(0.8f, 1.0f, 0.8f, 1.0f), "GET /api/notas");
-        ImGui::TableSetColumnIndex(1);
-        ImGui::Text("Lista todas las notas");
-
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::TextColored(ImVec4(0.8f, 1.0f, 0.8f, 1.0f), "GET /api/notas/{id}");
-        ImGui::TableSetColumnIndex(1);
-        ImGui::Text("Obtiene una nota por ID");
-
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::TextColored(ImVec4(0.8f, 1.0f, 0.8f, 1.0f), "GET /api/grafo");
-        ImGui::TableSetColumnIndex(1);
-        ImGui::Text("Obtiene nodos y aristas");
-
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::TextColored(ImVec4(0.8f, 1.0f, 0.8f, 1.0f), "GET /api/memoria/buscar");
-        ImGui::TableSetColumnIndex(1);
-        ImGui::Text("Busca notas por query");
-
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::TextColored(ImVec4(0.8f, 1.0f, 0.8f, 1.0f), "GET /api/stats");
-        ImGui::TableSetColumnIndex(1);
-        ImGui::Text("Estadísticas generales");
-
+        for (const auto& r : rows) {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::TextColored(pal.accent, "%s", r[0]);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::TextUnformatted(r[1]);
+        }
         ImGui::EndTable();
     }
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    ImGui::Text("Ejemplos de Uso:");
-    ImGui::TextDisabled("http://localhost:%d/api/notas", httpServer.getPort());
-    ImGui::TextDisabled("http://localhost:%d/api/memoria/buscar?q=python&n=5", httpServer.getPort());
 
     ImGui::End();
 }
