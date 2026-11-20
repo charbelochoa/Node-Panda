@@ -1,15 +1,9 @@
--- ═══════════════════════════════════════════════════════════════════════════
---  Plugin: Tag Browser
---  Panel para explorar notas por tags con frecuencias y filtrado.
--- ═══════════════════════════════════════════════════════════════════════════
-
-local tag_index = {}         -- tag -> {nota_id, nota_id, ...}
-local tag_list = {}          -- lista ordenada de {tag, count}
+local tag_index = {}
+local tag_list = {}
 local selected_tag = ""
 local refresh_counter = 0
 local needs_refresh = true
 
--- ── Indexar todos los tags del vault ─────────────────────────────────────
 local function indexar_tags()
     tag_index = {}
     tag_list = {}
@@ -19,7 +13,7 @@ local function indexar_tags()
         local tags_str = notas.meta(id, "tags")
         if tags_str ~= "" then
             for tag in tags_str:gmatch("[^,]+") do
-                tag = tag:match("^%s*(.-)%s*$")  -- trim
+                tag = tag:match("^%s*(.-)%s*$")
                 if tag ~= "" then
                     if not tag_index[tag] then
                         tag_index[tag] = {}
@@ -30,7 +24,6 @@ local function indexar_tags()
         end
     end
 
-    -- Ordenar por frecuencia descendente
     for tag, ids_list in pairs(tag_index) do
         table.insert(tag_list, { tag = tag, count = #ids_list })
     end
@@ -39,15 +32,13 @@ local function indexar_tags()
     needs_refresh = false
 end
 
--- ── on_load ──────────────────────────────────────────────────────────────
 function on_load()
     indexar_tags()
 
     print("[Tag Browser] Indexados " .. #tag_list .. " tags unicos")
 
-    -- Registrar panel
     ui.panel("Tag Browser", function()
-        -- Boton de refrescar
+
         if imgui.boton_pequeno("Reindexar Tags") then
             needs_refresh = true
         end
@@ -57,7 +48,6 @@ function on_load()
 
         imgui.separador()
 
-        -- Lista de tags con frecuencia
         if imgui.begin_child("##tag_list", 0, 200) then
             for _, entry in ipairs(tag_list) do
                 local label = entry.tag .. " (" .. entry.count .. ")"
@@ -65,7 +55,7 @@ function on_load()
 
                 if imgui.selectable(label, is_selected) then
                     if selected_tag == entry.tag then
-                        selected_tag = ""  -- deseleccionar
+                        selected_tag = ""
                     else
                         selected_tag = entry.tag
                     end
@@ -76,7 +66,6 @@ function on_load()
 
         imgui.separador()
 
-        -- Notas filtradas por tag seleccionado
         if selected_tag ~= "" then
             imgui.texto_color(0.28, 0.82, 0.76, 1.0, "Notas con tag: " .. selected_tag)
             imgui.espacio()
@@ -98,17 +87,15 @@ function on_load()
         end
     end)
 
-    -- Menu item
     ui.menu_item("Reindexar Tags", function()
         needs_refresh = true
         ui.notificacion("Tags reindexados: " .. #tag_list .. " tags", "info")
     end)
 end
 
--- ── on_frame: refrescar si es necesario ──────────────────────────────────
 function on_frame()
     refresh_counter = refresh_counter + 1
-    -- Auto-refrescar cada 600 frames (~10 seg)
+
     if refresh_counter >= 600 then
         refresh_counter = 0
         needs_refresh = true
