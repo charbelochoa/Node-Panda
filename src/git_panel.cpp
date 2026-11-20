@@ -15,7 +15,6 @@ void GitPanel::render(App& app) {
     auto& gitManager = app.getGitManager();
     auto& noteManager = app.getNoteManager();
 
-    // Git availability indicator
     ImVec4 availableColor = gitManager.isAvailable() ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f)
                                                       : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
     ImGui::TextColored(availableColor, gitManager.isAvailable() ? "Git: DISPONIBLE" : "Git: NO DISPONIBLE");
@@ -32,7 +31,6 @@ void GitPanel::render(App& app) {
         return;
     }
 
-    // Status bar
     auto status = gitManager.getStatus();
     ImGui::Text("Estado del Repositorio:");
     ImGui::SameLine();
@@ -53,14 +51,12 @@ void GitPanel::render(App& app) {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Auto-commit toggle
     ImGui::Checkbox("Auto-commit cada 5 minutos", &m_autoCommit);
     ImGui::SameLine();
     ImGui::TextDisabled("(si hay cambios)");
 
     ImGui::Spacing();
 
-    // Manual commit button
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.5f, 1.0f, 1.0f));
     if (ImGui::Button("Guardar Version (Commit)", ImVec2(250, 0))) {
         std::string message;
@@ -78,10 +74,9 @@ void GitPanel::render(App& app) {
 
     ImGui::Spacing();
 
-    // Auto-commit logic (every 5 minutes = 18000 frames at 60 FPS, or 300 seconds)
     if (m_autoCommit) {
         m_frameCounter++;
-        if (m_frameCounter >= 18000) {  // ~5 minutes at 60 FPS
+        if (m_frameCounter >= 18000) {
             m_frameCounter = 0;
             if (gitManager.hasChanges()) {
                 gitManager.autoCommit("Auto-commit: cambios automáticos");
@@ -93,7 +88,6 @@ void GitPanel::render(App& app) {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // History list
     ImGui::Text("Historial de Commits:");
     ImGui::Spacing();
 
@@ -128,11 +122,10 @@ void GitPanel::render(App& app) {
 
     ImGui::Spacing();
 
-    // Restore button
     if (!m_selectedCommit.empty()) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.5f, 0.0f, 1.0f));
         if (ImGui::Button("Restaurar desde Commit Seleccionado", ImVec2(300, 0))) {
-            // Find the selected commit's message
+
             for (const auto& commit : m_history) {
                 if (commit.hash == m_selectedCommit) {
                     ImGui::OpenPopup("restore_confirm");
@@ -147,7 +140,6 @@ void GitPanel::render(App& app) {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Diff viewer
     if (m_showDiff && !m_selectedCommit.empty()) {
         ImGui::Text("Vista de Cambios - Commit: %s", m_selectedCommit.c_str());
         ImGui::Spacing();
@@ -166,7 +158,6 @@ void GitPanel::render(App& app) {
         }
     }
 
-    // Restore confirmation dialog
     if (ImGui::BeginPopupModal("restore_confirm", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("Restaurar archivos desde este commit?");
         ImGui::Text("Esto puede descartar cambios recientes.");
@@ -179,7 +170,7 @@ void GitPanel::render(App& app) {
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
         if (ImGui::Button("Restaurar", ImVec2(120, 0))) {
-            // Restore all notes from the selected commit
+
             auto& allNotes = noteManager.getAllNotes();
             for (const auto& [id, note] : allNotes) {
                 gitManager.restoreFile(m_selectedCommit, id + ".md");
@@ -194,4 +185,4 @@ void GitPanel::render(App& app) {
     ImGui::End();
 }
 
-} // namespace nodepanda
+}
