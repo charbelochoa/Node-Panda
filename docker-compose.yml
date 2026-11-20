@@ -7,8 +7,10 @@ services:
     restart: unless-stopped
     ports:
       - "8042:8042"
+      - "8043:8043"
     environment:
       NODEPANDA_PORT: "8042"
+      NODEPANDA_RTC_PORT: "8043"
       NODEPANDA_DB_ENGINE: "${NODEPANDA_DB_ENGINE:-postgresql}"
       NODEPANDA_DB_MODE: "server"
       NODEPANDA_DB_HOST: "${NODEPANDA_DB_HOST:-postgres}"
