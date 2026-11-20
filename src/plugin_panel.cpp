@@ -1,4 +1,3 @@
-
 #include "plugin_panel.h"
 #include "app.h"
 #include "plugin_manager.h"
@@ -13,7 +12,6 @@ extern "C" {
 
 namespace nodepanda {
 
-// ── Colores del tema Node Panda ──────────────────────────────────────────────
 static const ImVec4 kTeal       = ImVec4(0.28f, 0.82f, 0.76f, 1.0f);
 static const ImVec4 kTealDim    = ImVec4(0.16f, 0.50f, 0.46f, 1.0f);
 static const ImVec4 kGreen      = ImVec4(0.36f, 0.72f, 0.48f, 1.0f);
@@ -27,7 +25,6 @@ void PluginPanel::render(App& app) {
 
     ImGui::Begin("Gestor de Plugins", nullptr, ImGuiWindowFlags_NoCollapse);
 
-    // ── Header con estadísticas ──────────────────────────────────────────
     auto& plugins = pm.getPlugins();
     int total   = (int)plugins.size();
     int active  = 0;
@@ -45,7 +42,6 @@ void PluginPanel::render(App& app) {
         ImGui::TextColored(kRed, "  |  %d errores", errored);
     }
 
-    // ── Barra de búsqueda ────────────────────────────────────────────────
     ImGui::Separator();
     ImGui::SetNextItemWidth(-80.0f);
     ImGui::InputTextWithHint("##plugin_search", "Buscar plugin...",
@@ -59,14 +55,13 @@ void PluginPanel::render(App& app) {
 
     ImGui::Separator();
 
-    // ── Lista de plugins ─────────────────────────────────────────────────
     std::string filter(m_searchBuf);
     std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
 
     ImGui::BeginChild("##plugin_list", ImVec2(0, 0), false);
 
     for (auto& plugin : pm.getPlugins()) {
-        // Filtro de búsqueda
+
         if (!filter.empty()) {
             std::string name = plugin.manifest.name;
             std::transform(name.begin(), name.end(), name.begin(), ::tolower);
@@ -80,7 +75,6 @@ void PluginPanel::render(App& app) {
 
         ImGui::PushID(plugin.manifest.id.c_str());
 
-        // Fondo ligeramente diferente según estado
         if (plugin.hasError) {
             ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.06f, 0.06f, 1.0f));
         } else if (plugin.manifest.enabled) {
@@ -92,7 +86,6 @@ void PluginPanel::render(App& app) {
         ImGui::BeginChild("##card", ImVec2(0, 0), true,
                           ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Border);
 
-        // ── Línea 1: Toggle + Nombre + Versión ──────────────────────────
         bool enabled = plugin.manifest.enabled;
         if (ImGui::Checkbox("##enable", &enabled)) {
             if (enabled)
@@ -112,12 +105,10 @@ void PluginPanel::render(App& app) {
             ImGui::TextColored(kDimText, "  por %s", plugin.manifest.author.c_str());
         }
 
-        // ── Línea 2: Descripción ────────────────────────────────────────
         if (!plugin.manifest.description.empty()) {
             ImGui::TextColored(kDimText, "  %s", plugin.manifest.description.c_str());
         }
 
-        // ── Línea 3: Hooks ──────────────────────────────────────────────
         if (!plugin.manifest.hooks.empty()) {
             ImGui::TextColored(ImVec4(0.30f, 0.32f, 0.42f, 1.0f), "  Hooks:");
             for (const auto& hook : plugin.manifest.hooks) {
@@ -126,12 +117,10 @@ void PluginPanel::render(App& app) {
             }
         }
 
-        // ── Estado de error ─────────────────────────────────────────────
         if (plugin.hasError) {
             ImGui::TextColored(kRed, "  Error: %s", plugin.lastError.c_str());
         }
 
-        // ── Botón Recargar ──────────────────────────────────────────────
         if (plugin.manifest.enabled) {
             ImGui::SameLine(ImGui::GetWindowWidth() - 80.0f);
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.20f, 0.34f, 1.0f));
@@ -143,13 +132,12 @@ void PluginPanel::render(App& app) {
         }
 
         ImGui::EndChild();
-        ImGui::PopStyleColor(); // ChildBg
+        ImGui::PopStyleColor();
 
         ImGui::Spacing();
         ImGui::PopID();
     }
 
-    // ── Mensaje si no hay plugins ────────────────────────────────────────
     if (plugins.empty()) {
         ImGui::Spacing();
         ImGui::TextColored(kDimText, "  No se encontraron plugins.");
@@ -162,16 +150,12 @@ void PluginPanel::render(App& app) {
 
     ImGui::End();
 
-    // ═════════════════════════════════════════════════════════════════════
-    //  Renderizar paneles registrados por plugins
-    // ═════════════════════════════════════════════════════════════════════
     for (auto& panel : pm.getPanels()) {
         if (!panel.open) continue;
 
         std::string title = panel.name + " [" + panel.pluginId + "]";
         ImGui::Begin(title.c_str(), &panel.open, ImGuiWindowFlags_NoCollapse);
 
-        // Invocar la función de render del plugin
         if (panel.luaState && panel.renderRef != -1) {
             lua_rawgeti(panel.luaState, LUA_REGISTRYINDEX, panel.renderRef);
             if (lua_pcall(panel.luaState, 0, 0, 0) != LUA_OK) {
@@ -184,9 +168,6 @@ void PluginPanel::render(App& app) {
         ImGui::End();
     }
 
-    // ═════════════════════════════════════════════════════════════════════
-    //  Renderizar notificaciones (toasts)
-    // ═════════════════════════════════════════════════════════════════════
     auto& notifications = pm.getNotifications();
     if (!notifications.empty()) {
         ImGuiViewport* vp = ImGui::GetMainViewport();
@@ -247,4 +228,4 @@ void PluginPanel::render(App& app) {
     }
 }
 
-} // namespace nodepanda
+}
