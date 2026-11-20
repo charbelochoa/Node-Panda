@@ -1,5 +1,3 @@
-
-
 #include "lua_console.h"
 #include "app.h"
 #include "lua_manager.h"
@@ -27,7 +25,7 @@ void LuaConsole::render(App& app) {
     ImGui::Separator();
 
     float footerH = ImGui::GetStyle().ItemSpacing.y +
-                    ImGui::GetFrameHeightWithSpacing() * 3.5f; 
+                    ImGui::GetFrameHeightWithSpacing() * 3.5f;
     ImGui::BeginChild("##lua_log", ImVec2(0, -footerH), true,
                       ImGuiWindowFlags_HorizontalScrollbar);
 
@@ -38,16 +36,16 @@ void LuaConsole::render(App& app) {
         const char* prefix;
         switch (entry.type) {
             case LuaLogEntry::OUTPUT:
-                color  = ImVec4(0.82f, 0.85f, 0.92f, 1.0f); 
+                color  = ImVec4(0.82f, 0.85f, 0.92f, 1.0f);
                 prefix = "";
                 break;
             case LuaLogEntry::LOG_ERROR:
-                color  = ImVec4(0.95f, 0.40f, 0.35f, 1.0f); 
+                color  = ImVec4(0.95f, 0.40f, 0.35f, 1.0f);
                 prefix = "[ERROR] ";
                 break;
             case LuaLogEntry::INFO:
             default:
-                color  = ImVec4(0.45f, 0.75f, 0.65f, 1.0f); 
+                color  = ImVec4(0.45f, 0.75f, 0.65f, 1.0f);
                 prefix = "[INFO] ";
                 break;
         }
@@ -119,4 +117,4 @@ void LuaConsole::render(App& app) {
     ImGui::End();
 }
 
-} 
+}
