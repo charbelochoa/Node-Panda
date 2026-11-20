@@ -33,6 +33,12 @@
 #include "data_lab.h"
 #include "evolution_engine.h"
 #include "agent_engine.h"
+#include "pdf_engine.h"
+#include "websocket_rtc.h"
+#include "table_view_engine.h"
+#include "vector_engine.h"
+#include "math_renderer.h"
+#include "mobile_bridge.h"
 
 struct GLFWwindow;
 
@@ -60,6 +66,11 @@ namespace nodepanda {
     class CommandPalette;
     class AgentPanel;
     class LabPanel;
+    class PdfPanel;
+    class RtcPanel;
+    class TableViewPanel;
+    class VectorPanel;
+    class MathPanel;
 }
 
 namespace nodepanda {
@@ -112,6 +123,11 @@ public:
     DataLab& getDataLab() { return m_dataLab; }
     EvolutionEngine& getEvolutionEngine() { return m_evolutionEngine; }
     AgentEngine& getAgentEngine() { return m_agentEngine; }
+    PdfEngine& getPdfEngine() { return m_pdfEngine; }
+    WebSocketRtcServer& getWebSocketRtc() { return m_wsRtcServer; }
+    WebSocketRtcServer& getWebSocketRtcServer() { return m_wsRtcServer; }
+    TableViewEngine& getTableViewEngine() { return m_tableViewEngine; }
+    VectorEngine& getVectorEngine() { return m_vectorEngine; }
 
     void rebuildKnowledgeIndices();
 
@@ -165,6 +181,10 @@ private:
     DataLab m_dataLab;
     EvolutionEngine m_evolutionEngine;
     AgentEngine m_agentEngine;
+    PdfEngine m_pdfEngine;
+    WebSocketRtcServer m_wsRtcServer;
+    TableViewEngine m_tableViewEngine;
+    VectorEngine m_vectorEngine;
 
     ExplorerPanel* m_explorerPanel = nullptr;
     EditorPanel* m_editorPanel = nullptr;
@@ -189,6 +209,11 @@ private:
     CommandPalette* m_commandPalette = nullptr;
     AgentPanel* m_agentPanel = nullptr;
     LabPanel* m_labPanel = nullptr;
+    PdfPanel* m_pdfPanel = nullptr;
+    RtcPanel* m_rtcPanel = nullptr;
+    TableViewPanel* m_tableViewPanel = nullptr;
+    VectorPanel* m_vectorPanel = nullptr;
+    MathPanel* m_mathPanel = nullptr;
 
     bool m_showDemoWindow = false;
     bool m_showExportResult = false;
