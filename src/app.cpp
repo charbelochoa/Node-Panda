@@ -29,6 +29,11 @@
 #include "command_palette.h"
 #include "agent_panel.h"
 #include "lab_panel.h"
+#include "pdf_panel.h"
+#include "rtc_panel.h"
+#include "table_view_panel.h"
+#include "vector_panel.h"
+#include "math_panel.h"
 #include "ai_exporter.h"
 #include "ui_theme.h"
 #include "ui_components.h"
@@ -105,6 +110,7 @@ void setupDockLayout(ImGuiID dockspaceId, ImVec2 size) {
     ImGui::DockBuilderDockWindow("Repeticion Espaciada", leftId);
     ImGui::DockBuilderDockWindow("Control de Versiones", leftId);
     ImGui::DockBuilderDockWindow("Servidor API", leftId);
+    ImGui::DockBuilderDockWindow("Realtime WebSocket RTC", leftId);
 
     ImGui::DockBuilderDockWindow("Editor de Notas", centerId);
     ImGui::DockBuilderDockWindow("Outliner", centerId);
@@ -112,6 +118,9 @@ void setupDockLayout(ImGuiID dockspaceId, ImVec2 size) {
     ImGui::DockBuilderDockWindow("Pizarra", centerId);
     ImGui::DockBuilderDockWindow("Agentes IA", centerId);
     ImGui::DockBuilderDockWindow("Laboratorio", centerId);
+    ImGui::DockBuilderDockWindow("Anotador PDF", centerId);
+    ImGui::DockBuilderDockWindow("Vista de Tabla", centerId);
+    ImGui::DockBuilderDockWindow("Matematicas LaTeX", centerId);
 
     ImGui::DockBuilderDockWindow("Consola Lua", centerBottomId);
     ImGui::DockBuilderDockWindow("Motor de Consultas", centerBottomId);
@@ -120,6 +129,7 @@ void setupDockLayout(ImGuiID dockspaceId, ImVec2 size) {
     ImGui::DockBuilderDockWindow("Backlinks", rightBottomId);
     ImGui::DockBuilderDockWindow("Motor de Memoria", rightBottomId);
     ImGui::DockBuilderDockWindow("Analisis de Grafo", rightBottomId);
+    ImGui::DockBuilderDockWindow("Busqueda Vectorial", rightBottomId);
 
     ImGui::DockBuilderFinish(dockspaceId);
 }
@@ -150,6 +160,11 @@ App::App()
     , m_commandPalette(new CommandPalette())
     , m_agentPanel(new AgentPanel())
     , m_labPanel(new LabPanel())
+    , m_pdfPanel(new PdfPanel())
+    , m_rtcPanel(new RtcPanel())
+    , m_tableViewPanel(new TableViewPanel())
+    , m_vectorPanel(new VectorPanel())
+    , m_mathPanel(new MathPanel())
 {}
 
 App::~App() {
@@ -176,6 +191,11 @@ App::~App() {
     delete m_commandPalette;
     delete m_agentPanel;
     delete m_labPanel;
+    delete m_pdfPanel;
+    delete m_rtcPanel;
+    delete m_tableViewPanel;
+    delete m_vectorPanel;
+    delete m_mathPanel;
 }
 
 bool App::initCore() {
@@ -248,6 +268,9 @@ bool App::initCore() {
     m_evolutionEngine.init(dataDir);
     m_agentEngine.init(baseDir, &m_aiCatalog, &m_contextBrain, &m_skillManager, &m_usageLedger, &m_noteManager);
     m_gitManager.init(notesDir);
+    m_pdfEngine.init(dataDir);
+    m_tableViewEngine.init(dataDir);
+    m_vectorEngine.init(dataDir);
 
     rebuildKnowledgeIndices();
     rebuildGraph();
@@ -259,6 +282,7 @@ void App::rebuildKnowledgeIndices() {
     m_outlinerEngine.rebuildFromNotes(m_noteManager);
     m_taskEngine.rebuildFromNotes(m_noteManager);
     m_datalogEngine.rebuildIndex(m_noteManager);
+    m_vectorEngine.rebuildIndex(m_noteManager, m_outlinerEngine);
     m_memoryEngine.markDirty();
 }
 
@@ -309,7 +333,13 @@ bool App::init(const char* title, int width, int height) {
     int port = 8042;
     const char* envPort = std::getenv("NODEPANDA_PORT");
     if (envPort) { try { port = std::stoi(envPort); } catch (...) {} }
-    m_httpServer.start(this, port, "127.0.0.1");
+    const char* envHost = std::getenv("NODEPANDA_HOST");
+    std::string bindHost = envHost ? std::string(envHost) : "127.0.0.1";
+    int rtcPort = 8043;
+    const char* envRtcPort = std::getenv("NODEPANDA_RTC_PORT");
+    if (envRtcPort) { try { rtcPort = std::stoi(envRtcPort); } catch (...) {} }
+    m_httpServer.start(this, port, bindHost);
+    m_wsRtcServer.start(rtcPort, bindHost);
 
     graphNeedsRebuild = true;
     m_guiInitialized = true;
@@ -321,13 +351,19 @@ void App::runHeadlessServer(int port) {
 
     const char* envHost = std::getenv("NODEPANDA_HOST");
     std::string bindHost = envHost ? std::string(envHost) : "0.0.0.0";
+    int rtcPort = 8043;
+    const char* envRtcPort = std::getenv("NODEPANDA_RTC_PORT");
+    if (envRtcPort) { try { rtcPort = std::stoi(envRtcPort); } catch (...) {} }
 
     g_serverStopSignal = 0;
     std::signal(SIGINT, handleServerSignal);
     std::signal(SIGTERM, handleServerSignal);
 
     m_httpServer.start(this, port, bindHost);
-    std::cout << "Servidor Node Panda activo en http://" << bindHost << ":" << port << "\n";
+    m_wsRtcServer.start(rtcPort, bindHost);
+    std::cout << "Servidor Node Panda activo en http:" << "/" << "/" << bindHost << ":" << port << "\n";
+    std::cout << "WebSocket RTC activo en ws:" << "/" << "/" << bindHost << ":" << rtcPort << "\n";
+    std::cout << "Companion Movil PWA: " << MobileBridge::getLocalLanHint(port) << "\n";
     std::cout << "Motor DB: " << m_databaseManager.getStatus().engineName
               << " (" << m_databaseManager.getStatus().modeName << ")\n";
     std::cout << "Presiona Ctrl+C para detener.\n";
@@ -336,6 +372,7 @@ void App::runHeadlessServer(int port) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
+    m_wsRtcServer.stop();
     m_httpServer.stop();
 }
 
@@ -425,6 +462,11 @@ void App::run() {
             m_syncPanel->render(*this);
             m_agentPanel->render(*this);
             m_labPanel->render(*this);
+            m_pdfPanel->render(*this);
+            m_rtcPanel->render(*this);
+            m_tableViewPanel->render(*this);
+            m_vectorPanel->render(*this);
+            m_mathPanel->render(*this);
             m_commandPalette->render(*this);
 
             m_pluginManager.callOnFrame();
@@ -450,6 +492,7 @@ void App::run() {
 }
 
 void App::shutdown() {
+    m_wsRtcServer.stop();
     m_httpServer.stop();
     m_agentEngine.shutdown();
     if (m_guiInitialized) {
@@ -550,6 +593,13 @@ void App::renderMenuBar() {
         }
         if (ImGui::MenuItem("Refrescar Cola SRS")) {
             m_srsEngine.buildQueue(m_noteManager);
+        }
+        if (ImGui::MenuItem("Reconstruir Indice Vectorial 384D")) {
+            m_vectorEngine.rebuildIndex(m_noteManager, m_outlinerEngine);
+            ui::pushToast("Indice vectorial 384D actualizado (" + std::to_string(m_vectorEngine.documentCount()) + " docs)", "success");
+        }
+        if (ImGui::MenuItem("Mostrar URL Companion Movil")) {
+            ui::pushToast("Companion Movil: " + MobileBridge::getLocalLanHint(m_httpServer.getPort()), "info");
         }
         ImGui::Separator();
         bool serverRunning = m_httpServer.isRunning();
