@@ -25,10 +25,17 @@ enum class SRSRating {
     Easy  = 5
 };
 
+struct ClozeCard {
+    std::string noteId;
+    std::string prompt;
+    std::string answer;
+};
+
 class SRSEngine {
 public:
 
     void buildQueue(NoteManager& nm);
+    std::vector<ClozeCard> extractClozeCards(const NoteManager& nm) const;
 
     void rateCard(const std::string& noteId, SRSRating rating, NoteManager& nm);
 
