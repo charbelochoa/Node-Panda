@@ -1,9 +1,11 @@
 {
-  "name":        "Theme Switcher",
-  "id":          "theme_switcher",
-  "version":     "1.0.0",
-  "author":      "NodePanda",
+  "name": "Theme Switcher",
+  "id": "theme_switcher",
+  "version": "2.0.0",
+  "author": "NodePanda",
   "description": "Cambia el tema de colores de la interfaz. Incluye temas: Dark, Nord, Catppuccin, Gruvbox, Dracula.",
-  "hooks":       ["on_load"],
-  "enabled":     true
+  "hooks": [
+    "on_load"
+  ],
+  "enabled": true
 }
