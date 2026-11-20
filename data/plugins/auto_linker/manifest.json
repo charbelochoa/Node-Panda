@@ -1,9 +1,13 @@
 {
-  "name":        "Auto-Linker",
-  "id":          "auto_linker",
-  "version":     "1.0.0",
-  "author":      "NodePanda",
+  "name": "Auto-Linker",
+  "id": "auto_linker",
+  "version": "2.0.0",
+  "author": "NodePanda",
   "description": "Sugiere notas relacionadas usando el Motor de Memoria TF-IDF. Permite insertar links con un clic.",
-  "hooks":       ["on_load", "on_note_open", "on_frame"],
-  "enabled":     true
+  "hooks": [
+    "on_load",
+    "on_note_open",
+    "on_frame"
+  ],
+  "enabled": true
 }
