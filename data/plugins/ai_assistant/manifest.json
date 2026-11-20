@@ -1,0 +1,12 @@
+{
+  "name": "AI Assistant",
+  "id": "ai_assistant",
+  "version": "1.0.0",
+  "author": "NodePanda",
+  "description": "Genera resúmenes estructurales, borradores y contexto rapido de la nota activa.",
+  "hooks": [
+    "on_load",
+    "on_note_open"
+  ],
+  "enabled": true
+}
