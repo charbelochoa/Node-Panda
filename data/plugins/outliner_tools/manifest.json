@@ -1,0 +1,12 @@
+{
+  "name": "Outliner Tools",
+  "id": "outliner_tools",
+  "version": "1.0.0",
+  "author": "NodePanda",
+  "description": "Inspecciona la jerarquia de encabezados y listas anidadas de la nota seleccionada.",
+  "hooks": [
+    "on_load",
+    "on_note_open"
+  ],
+  "enabled": true
+}
