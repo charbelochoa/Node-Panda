@@ -1,5 +1,3 @@
-
-
 #define SOL_ALL_SAFETIES_ON 1
 #include "lua_manager.h"
 #include "app.h"
@@ -10,7 +8,6 @@
 #include <sstream>
 
 namespace nodepanda {
-
 
 std::string LuaManager::currentTimestamp() {
     auto now = std::chrono::system_clock::now();
@@ -26,7 +23,6 @@ std::string LuaManager::currentTimestamp() {
     return std::string(ts);
 }
 
-
 LuaManager::LuaManager() = default;
 
 LuaManager::~LuaManager() {
@@ -35,7 +31,6 @@ LuaManager::~LuaManager() {
         m_lua = nullptr;
     }
 }
-
 
 void LuaManager::init(App* app) {
     m_app = app;
@@ -55,7 +50,6 @@ void LuaManager::init(App* app) {
     logInfo("Lua 5.4 inicializado (sandbox activo)");
 }
 
-
 void LuaManager::setupSandbox() {
     const char* sandbox = R"(
         dofile     = nil
@@ -68,7 +62,6 @@ void LuaManager::setupSandbox() {
     )";
     luaL_dostring(m_lua, sandbox);
 }
-
 
 void LuaManager::registerBindings() {
     sol::state_view lua(m_lua);
@@ -190,7 +183,6 @@ void LuaManager::registerBindings() {
         return m_app->getPerformanceMetrics().memoryMB();
     });
 
-    // ── API: memoria (Motor de Memoria TF-IDF) ─────────────────────────────
     sol::table mem = lua.create_named_table("memoria");
 
     mem.set_function("similares", [this](const std::string& noteId, int topN) -> sol::table {
@@ -236,7 +228,6 @@ void LuaManager::registerBindings() {
     });
 }
 
-
 LuaResult LuaManager::execute(const std::string& code) {
     LuaResult result;
     m_capturedOutput.clear();
@@ -247,7 +238,7 @@ LuaResult LuaManager::execute(const std::string& code) {
         struct TimeoutData { std::chrono::high_resolution_clock::time_point deadline; };
         auto* td = new TimeoutData{start + std::chrono::milliseconds(timeoutMs)};
 
-        lua_setallocf(m_lua, nullptr, nullptr); 
+        lua_setallocf(m_lua, nullptr, nullptr);
         lua_sethook(m_lua, [](lua_State* L, lua_Debug*) {
             lua_getfield(L, LUA_REGISTRYINDEX, "__np_deadline");
             if (lua_islightuserdata(L, -1)) {
@@ -259,7 +250,7 @@ LuaResult LuaManager::execute(const std::string& code) {
                 }
             }
             lua_pop(L, 1);
-        }, LUA_MASKCOUNT, 10000); 
+        }, LUA_MASKCOUNT, 10000);
 
         lua_pushlightuserdata(m_lua, td);
         lua_setfield(m_lua, LUA_REGISTRYINDEX, "__np_deadline");
@@ -319,7 +310,6 @@ LuaResult LuaManager::execute(const std::string& code) {
     return result;
 }
 
-
 void LuaManager::clearLog() {
     m_log.clear();
 }
@@ -328,4 +318,4 @@ void LuaManager::logInfo(const std::string& text) {
     m_log.push_back({LuaLogEntry::INFO, text, currentTimestamp()});
 }
 
-} 
+}
