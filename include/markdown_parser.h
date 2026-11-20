@@ -10,7 +10,6 @@ class MarkdownParser {
 public:
     static std::vector<std::string> extractLinks(const std::string& content);
 
-   
     static void renderToImGui(const std::string& content, std::string& clickedLink,
                                TextureManager* texManager = nullptr,
                                const std::string& notesDir = "");
@@ -23,4 +22,4 @@ private:
     static constexpr float BULLET_COLOR[4]  = {0.6f, 0.6f, 0.9f, 1.0f};
 };
 
-} 
+}
