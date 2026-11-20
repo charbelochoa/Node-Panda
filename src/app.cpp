@@ -55,6 +55,7 @@ extern "C" {
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <thread>
 #include <unordered_set>
@@ -101,11 +102,11 @@ void setupDockLayout(ImGuiID dockspaceId, ImVec2 size) {
     ImGui::DockBuilderSplitNode(centerId, ImGuiDir_Down, 0.30f, &centerBottomId, &centerId);
 
     ImGui::DockBuilderDockWindow("Explorador de Notas", leftId);
-    ImGui::DockBuilderDockWindow("Diarios", leftId);
+    ImGui::DockBuilderDockWindow("Diario", leftId);
     ImGui::DockBuilderDockWindow("Centro de Mando", leftId);
     ImGui::DockBuilderDockWindow("Base de Datos", leftId);
-    ImGui::DockBuilderDockWindow("Sincronizacion", leftId);
-    ImGui::DockBuilderDockWindow("Activos", leftId);
+    ImGui::DockBuilderDockWindow("Sync & Backups", leftId);
+    ImGui::DockBuilderDockWindow("Assets", leftId);
     ImGui::DockBuilderDockWindow("Gestor de Plugins", leftId);
     ImGui::DockBuilderDockWindow("Repeticion Espaciada", leftId);
     ImGui::DockBuilderDockWindow("Control de Versiones", leftId);
@@ -116,8 +117,8 @@ void setupDockLayout(ImGuiID dockspaceId, ImVec2 size) {
     ImGui::DockBuilderDockWindow("Outliner", centerId);
     ImGui::DockBuilderDockWindow("Tareas", centerId);
     ImGui::DockBuilderDockWindow("Pizarra", centerId);
-    ImGui::DockBuilderDockWindow("Agentes IA", centerId);
-    ImGui::DockBuilderDockWindow("Laboratorio", centerId);
+    ImGui::DockBuilderDockWindow("Centro de Agentes IA", centerId);
+    ImGui::DockBuilderDockWindow("Laboratorio de Datos y Evolucion", centerId);
     ImGui::DockBuilderDockWindow("Anotador PDF", centerId);
     ImGui::DockBuilderDockWindow("Vista de Tabla", centerId);
     ImGui::DockBuilderDockWindow("Matematicas LaTeX", centerId);
@@ -486,6 +487,101 @@ void App::run() {
         glClearColor(bg.x, bg.y, bg.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        if (!m_captureDir.empty()) {
+            m_captureFrame++;
+            auto dumpBmp = [&](const std::string& filename) {
+                if (displayW <= 0 || displayH <= 0) return;
+                std::vector<unsigned char> rgb(static_cast<size_t>(displayW) * static_cast<size_t>(displayH) * 3);
+                glPixelStorei(GL_PACK_ALIGNMENT, 1);
+                glReadPixels(0, 0, displayW, displayH, GL_RGB, GL_UNSIGNED_BYTE, rgb.data());
+                std::filesystem::create_directories(m_captureDir);
+                std::ofstream out(std::filesystem::path(m_captureDir) / filename, std::ios::binary);
+                if (!out.is_open()) return;
+                int rowStride = (displayW * 3 + 3) & ~3;
+                uint32_t imgSize = static_cast<uint32_t>(rowStride * displayH);
+                uint32_t fileSize = 54 + imgSize;
+                unsigned char hdr[54] = {0};
+                hdr[0] = 'B'; hdr[1] = 'M';
+                hdr[2] = fileSize & 0xff; hdr[3] = (fileSize >> 8) & 0xff;
+                hdr[4] = (fileSize >> 16) & 0xff; hdr[5] = (fileSize >> 24) & 0xff;
+                hdr[10] = 54; hdr[14] = 40;
+                hdr[18] = displayW & 0xff; hdr[19] = (displayW >> 8) & 0xff;
+                hdr[20] = (displayW >> 16) & 0xff; hdr[21] = (displayW >> 24) & 0xff;
+                hdr[22] = displayH & 0xff; hdr[23] = (displayH >> 8) & 0xff;
+                hdr[24] = (displayH >> 16) & 0xff; hdr[25] = (displayH >> 24) & 0xff;
+                hdr[26] = 1; hdr[28] = 24;
+                out.write(reinterpret_cast<const char*>(hdr), 54);
+                std::vector<unsigned char> row(static_cast<size_t>(rowStride), 0);
+                for (int y = 0; y < displayH; ++y) {
+                    const unsigned char* src = rgb.data() + static_cast<size_t>(y) * static_cast<size_t>(displayW) * 3;
+                    for (int x = 0; x < displayW; ++x) {
+                        row[x * 3 + 0] = src[x * 3 + 2];
+                        row[x * 3 + 1] = src[x * 3 + 1];
+                        row[x * 3 + 2] = src[x * 3 + 0];
+                    }
+                    out.write(reinterpret_cast<const char*>(row.data()), rowStride);
+                }
+            };
+            if (m_captureFrame == 6) {
+                dumpBmp("hub_bienvenida.bmp");
+                currentState = AppState::ENTORNO_NOTAS;
+                selectedNoteId = "Bienvenida";
+                graphNeedsRebuild = true;
+            } else if (m_captureFrame == 14) {
+                ImGui::SetWindowFocus("Explorador de Notas");
+                ImGui::SetWindowFocus("Motor de Consultas");
+                ImGui::SetWindowFocus("Backlinks");
+                ImGui::SetWindowFocus("Grafo de Nodos");
+                ImGui::SetWindowFocus("Editor de Notas");
+            } else if (m_captureFrame == 30) {
+                dumpBmp("workspace_principal.bmp");
+                ImGui::SetWindowFocus("Busqueda Vectorial");
+                ImGui::SetWindowFocus("Centro de Agentes IA");
+            } else if (m_captureFrame == 42) {
+                dumpBmp("agentes_ia.bmp");
+                ImGui::SetWindowFocus("Analisis de Grafo");
+                ImGui::SetWindowFocus("Vista de Tabla");
+            } else if (m_captureFrame == 54) {
+                dumpBmp("vista_tabla.bmp");
+                ImGui::SetWindowFocus("Motor de Memoria");
+                ImGui::SetWindowFocus("Matematicas LaTeX");
+            } else if (m_captureFrame == 66) {
+                dumpBmp("matematicas_latex.bmp");
+                if (auto* wb = m_whiteboardEngine.activeBoard(); wb && wb->nodes.empty()) {
+                    std::string n1 = m_whiteboardEngine.addNode(WhiteboardNodeKind::NoteCard, "Bienvenida", "Base de conocimiento enlazada en C++17", 40.0f, 50.0f, "Bienvenida");
+                    std::string n2 = m_whiteboardEngine.addNode(WhiteboardNodeKind::StickyNote, "Agentes IA", "Multi-proveedor + Context Brain + Skills", 320.0f, 40.0f, "ProyectoIA");
+                    std::string n3 = m_whiteboardEngine.addNode(WhiteboardNodeKind::TextBox, "Motor Vectorial 384D", "Busqueda semantica coseno + Datalog", 180.0f, 220.0f, "Ideas");
+                    m_whiteboardEngine.addEdge(n1, n2, "coordina");
+                    m_whiteboardEngine.addEdge(n2, n3, "consulta");
+                }
+                ImGui::SetWindowFocus("Realtime WebSocket RTC");
+                ImGui::SetWindowFocus("Pizarra");
+            } else if (m_captureFrame == 78) {
+                dumpBmp("pizarra_visual.bmp");
+                if (!m_pdfEngine.activeDocument()) {
+                    auto pdfPath = std::filesystem::current_path() / "data" / "pdfs" / "arquitectura_nodepanda.pdf";
+                    std::filesystem::create_directories(pdfPath.parent_path());
+                    std::vector<std::string> paras = {
+                        "Node Panda v2.1: Base de conocimiento local-first en C++17 con OpenGL y Dear ImGui.",
+                        "Incluye Outliner jerarquico, consultas Datalog, Busqueda Vectorial 384D y Pizarra infinita.",
+                        "Orquestacion de Agentes IA multi-proveedor, servidor REST, WebSockets RTC y PostgreSQL/MySQL.",
+                        "Cifrado autenticado local, sesiones SHA-256 y sandbox Lua 5.4 para extensiones seguras."
+                    };
+                    m_pdfEngine.createSamplePdf(pdfPath, "Arquitectura Node Panda v2.1", paras);
+                    std::string pdfErr;
+                    if (m_pdfEngine.openPdf(pdfPath, pdfErr) && m_pdfEngine.activeDocument() && m_pdfEngine.activeDocument()->highlights.empty()) {
+                        m_pdfEngine.addHighlight(0, 0.08f, 0.14f, 0.80f, 0.07f, 0,
+                                                 "Base de conocimiento local-first en C++17", "Nucleo de alto rendimiento", "Bienvenida");
+                        m_pdfEngine.addHighlight(0, 0.08f, 0.30f, 0.82f, 0.07f, 1,
+                                                 "Orquestacion de Agentes IA multi-proveedor", "Integracion completa con CLI y GUI", "ProyectoIA");
+                    }
+                }
+                ImGui::SetWindowFocus("Anotador PDF");
+            } else if (m_captureFrame == 90) {
+                dumpBmp("anotador_pdf.bmp");
+                glfwSetWindowShouldClose(m_window, true);
+            }
+        }
         glfwSwapBuffers(m_window);
         m_perfMetrics.endFrame();
     }

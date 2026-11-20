@@ -906,6 +906,8 @@ CliLaunchResult CliRunner::run(int argc, char** argv, App& app) {
     }
 
     if (hasFlag(args, "--gui") || args[0] == "gui") {
+        std::string capDir = getFlag(args, "--capture-dir");
+        if (!capDir.empty()) app.setAutoCaptureDir(capDir);
         result.mode = LaunchMode::GuiApp;
         return result;
     }

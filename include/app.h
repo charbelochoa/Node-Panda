@@ -130,6 +130,7 @@ public:
     VectorEngine& getVectorEngine() { return m_vectorEngine; }
 
     void rebuildKnowledgeIndices();
+    void setAutoCaptureDir(const std::string& dir) { m_captureDir = dir; }
 
     std::string selectedNoteId;
     bool graphNeedsRebuild = true;
@@ -226,6 +227,8 @@ private:
     unsigned int m_hubPandaTexId = 0;
     bool m_hubPandaLoaded = false;
     char m_hubNewNoteName[256] = {};
+    std::string m_captureDir;
+    int m_captureFrame = 0;
 };
 
 }
