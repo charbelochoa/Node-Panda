@@ -1,0 +1,14 @@
+build/
+out/
+.git/
+.nodepanda/
+.vs/
+.vscode/
+*.exe
+*.obj
+*.o
+*.pdb
+*.log
+_deps/
+data/notas/
+data/backups/
