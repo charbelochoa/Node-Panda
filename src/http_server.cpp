@@ -16,6 +16,7 @@ typedef int SOCKET;
 
 #include "http_server.h"
 #include "app.h"
+#include "mobile_bridge.h"
 
 #include <algorithm>
 #include <iomanip>
@@ -148,7 +149,13 @@ void HttpServer::serverLoop() {
                     reqBody = request.substr(bodyStart + 4);
                 }
                 std::string response = handleRequest(method, path, reqHeaders, reqBody);
-                ::send(clientSocket, response.c_str(), static_cast<int>(response.length()), 0);
+                size_t totalSent = 0;
+                while (totalSent < response.length()) {
+                    int sent = ::send(clientSocket, response.c_str() + totalSent,
+                                      static_cast<int>(response.length() - totalSent), 0);
+                    if (sent <= 0) break;
+                    totalSent += static_cast<size_t>(sent);
+                }
             }
         }
 
@@ -218,6 +225,24 @@ std::string HttpServer::handleRequest(const std::string& method, const std::stri
     std::string pathOnly = (queryPos != std::string::npos) ? path.substr(0, queryPos) : path;
 
     if (method == "GET") {
+        if (pathOnly == "/" || pathOnly == "/mobile") {
+            return httpResponse(200, MobileBridge::renderMobileAppHtml(m_port), "text/html");
+        }
+        if (pathOnly == "/manifest.json") {
+            return httpResponse(200, MobileBridge::renderManifestJson(), "application/manifest+json");
+        }
+        if (pathOnly == "/sw.js") {
+            return httpResponse(200, MobileBridge::renderServiceWorkerJs(), "application/javascript");
+        }
+        if (pathOnly == "/mobile/icon.svg") {
+            return httpResponse(
+                200,
+                "<svg xmlns='http:" "/" "/www.w3.org/2000/svg' viewBox='0 0 128 128'>"
+                "<rect width='128' height='128' rx='28' fill='#151515'/>"
+                "<circle cx='64' cy='64' r='34' fill='#257de0'/>"
+                "<circle cx='64' cy='64' r='14' fill='#f2f2f2'/></svg>",
+                "image/svg+xml");
+        }
         if (pathOnly == "/api/health" || pathOnly == "/healthz") {
             return httpResponse(200, buildJsonHealth());
         }
@@ -276,6 +301,23 @@ std::string HttpServer::handleRequest(const std::string& method, const std::stri
         if (pathOnly == "/api/v1/sync") {
             return httpResponse(200, buildJsonSyncStatus());
         }
+        if (pathOnly == "/api/v1/vector/search") {
+            std::string query = extractParam(path, "q");
+            std::string kStr = extractParam(path, "k");
+            int topK = 10;
+            if (!kStr.empty()) { try { topK = std::stoi(kStr); } catch (...) {} }
+            topK = std::max(1, std::min(100, topK));
+            return httpResponse(200, buildJsonVectorSearch(query, topK));
+        }
+        if (pathOnly == "/api/v1/rtc") {
+            return httpResponse(200, buildJsonRtcStatus());
+        }
+        if (pathOnly == "/api/v1/pdfs") {
+            return httpResponse(200, buildJsonPdfs());
+        }
+        if (pathOnly == "/api/v1/tables") {
+            return httpResponse(200, buildJsonTables());
+        }
         return httpResponse(404, "{\"error\":\"Not found\"}");
     }
 
@@ -295,7 +337,7 @@ std::string HttpServer::handleRequest(const std::string& method, const std::stri
 
 std::string HttpServer::buildJsonHealth() {
     std::ostringstream oss;
-    oss << "{\"status\":\"ok\",\"service\":\"nodepanda\",\"version\":\"2.0.0\",\"port\":" << m_port << "}";
+    oss << "{\"status\":\"ok\",\"service\":\"nodepanda\",\"version\":\"2.1.0\",\"port\":" << m_port << "}";
     return oss.str();
 }
 
@@ -307,6 +349,10 @@ std::string HttpServer::buildJsonSnapshot() {
         << ",\"tasks\":" << m_app->getTaskEngine().getTasks().size()
         << ",\"runs\":" << m_app->getAgentEngine().listRuns().size()
         << ",\"skills\":" << m_app->getSkillManager().getSkills().size()
+        << ",\"vectors\":" << m_app->getVectorEngine().documentCount()
+        << ",\"pdfs\":" << m_app->getPdfEngine().documents().size()
+        << ",\"tables\":" << m_app->getTableViewEngine().views().size()
+        << ",\"rtc_peers\":" << m_app->getWebSocketRtcServer().stats().connectedPeers
         << ",\"db\":" << buildJsonDbStatus()
         << ",\"sync\":" << buildJsonSyncStatus()
         << "}";
@@ -502,6 +548,98 @@ std::string HttpServer::buildJsonSyncStatus() {
         << ",\"checksum\":\"" << jsonEscape(diag.localChecksum)
         << "\",\"e2ee\":" << (diag.e2eeEnabled ? "true" : "false")
         << ",\"running\":" << (diag.running ? "true" : "false") << "}";
+    return oss.str();
+}
+
+std::string HttpServer::buildJsonVectorSearch(const std::string& query, int topK) {
+    if (!m_app) return "[]";
+    auto hits = m_app->getVectorEngine().searchHybrid(query, topK);
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(4);
+    oss << "[";
+    for (size_t i = 0; i < hits.size(); ++i) {
+        if (i > 0) oss << ",";
+        const auto& h = hits[i];
+        oss << "{\"id\":\"" << jsonEscape(h.id)
+            << "\",\"kind\":\"" << jsonEscape(h.kind)
+            << "\",\"page\":\"" << jsonEscape(h.pageId)
+            << "\",\"title\":\"" << jsonEscape(h.title)
+            << "\",\"snippet\":\"" << jsonEscape(h.snippet)
+            << "\",\"vector_score\":" << h.vectorScore
+            << ",\"keyword_score\":" << h.keywordScore
+            << ",\"hybrid_score\":" << h.hybridScore << "}";
+    }
+    oss << "]";
+    return oss.str();
+}
+
+std::string HttpServer::buildJsonRtcStatus() {
+    if (!m_app) return "{}";
+    auto& rtc = m_app->getWebSocketRtcServer();
+    auto st = rtc.stats();
+    auto peers = rtc.listPeers();
+    std::ostringstream oss;
+    oss << "{\"running\":" << (st.serverRunning ? "true" : "false")
+        << ",\"port\":" << st.port
+        << ",\"bind_host\":\"" << jsonEscape(rtc.getBindHost()) << "\""
+        << ",\"connected_peers\":" << st.connectedPeers
+        << ",\"messages_sent\":" << st.messagesSent
+        << ",\"messages_received\":" << st.messagesReceived
+        << ",\"current_rev\":" << st.currentRev
+        << ",\"peers\":[";
+    for (size_t i = 0; i < peers.size(); ++i) {
+        if (i > 0) oss << ",";
+        const auto& p = peers[i];
+        oss << "{\"peer_id\":\"" << jsonEscape(p.peerId)
+            << "\",\"username\":\"" << jsonEscape(p.username)
+            << "\",\"editing_note\":\"" << jsonEscape(p.editingNoteId)
+            << "\",\"editing_block\":\"" << jsonEscape(p.editingBlockUuid)
+            << "\",\"status\":\"" << jsonEscape(p.status) << "\"}";
+    }
+    oss << "]}";
+    return oss.str();
+}
+
+std::string HttpServer::buildJsonPdfs() {
+    if (!m_app) return "[]";
+    const auto& docs = m_app->getPdfEngine().documents();
+    std::ostringstream oss;
+    oss << "[";
+    for (size_t i = 0; i < docs.size(); ++i) {
+        if (i > 0) oss << ",";
+        const auto& d = docs[i];
+        oss << "{\"id\":\"" << jsonEscape(d.id)
+            << "\",\"title\":\"" << jsonEscape(d.title)
+            << "\",\"path\":\"" << jsonEscape(d.filePath.string())
+            << "\",\"sha256\":\"" << jsonEscape(d.sha256)
+            << "\",\"pages\":" << d.pages.size()
+            << ",\"highlights\":" << d.highlights.size()
+            << ",\"loaded\":" << (d.loaded ? "true" : "false") << "}";
+    }
+    oss << "]";
+    return oss.str();
+}
+
+std::string HttpServer::buildJsonTables() {
+    if (!m_app) return "[]";
+    const auto& views = m_app->getTableViewEngine().views();
+    std::ostringstream oss;
+    oss << "[";
+    for (size_t i = 0; i < views.size(); ++i) {
+        if (i > 0) oss << ",";
+        const auto& v = views[i];
+        auto rows = m_app->getTableViewEngine().queryRows(m_app->getNoteManager(), v);
+        oss << "{\"id\":\"" << jsonEscape(v.id)
+            << "\",\"name\":\"" << jsonEscape(v.name)
+            << "\",\"filter_tag\":\"" << jsonEscape(v.filterTag)
+            << "\",\"filter_type\":\"" << jsonEscape(v.filterType)
+            << "\",\"filter_namespace\":\"" << jsonEscape(v.filterNamespace)
+            << "\",\"sort_column\":\"" << jsonEscape(v.sortColumn)
+            << "\",\"sort_ascending\":" << (v.sortAscending ? "true" : "false")
+            << ",\"columns\":" << v.columns.size()
+            << ",\"row_count\":" << rows.size() << "}";
+    }
+    oss << "]";
     return oss.str();
 }
 
