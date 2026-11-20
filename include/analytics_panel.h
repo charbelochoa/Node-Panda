@@ -12,4 +12,4 @@ private:
     int m_cachedNodeCount = -1;
     int m_selectedTab = 0;
 };
-} // namespace nodepanda
+}
