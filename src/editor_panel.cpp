@@ -1,5 +1,3 @@
-
-
 #include "editor_panel.h"
 #include "ai_exporter.h"
 #include "texture_manager.h"
@@ -15,11 +13,10 @@
 
 namespace nodepanda {
 
-
 void EditorPanel::renderPandaBanner(App& app) {
 
     if (!m_pandaLoaded) {
-        m_pandaLoaded = true;   
+        m_pandaLoaded = true;
 
         namespace fs = std::filesystem;
         fs::path p1 = fs::current_path() / "panda.png";
@@ -33,8 +30,8 @@ void EditorPanel::renderPandaBanner(App& app) {
 
     constexpr float IMG_SIZE = 100.0f;
     constexpr float PAD_TOP  = 10.0f;
-    constexpr float GAP      = 8.0f;   
-    constexpr float TEXT_H   = 18.0f;  
+    constexpr float GAP      = 8.0f;
+    constexpr float TEXT_H   = 18.0f;
     constexpr float PAD_BOT  = 10.0f;
     constexpr float BANNER_H = PAD_TOP + IMG_SIZE + GAP + TEXT_H + PAD_BOT;
 
@@ -67,13 +64,12 @@ void EditorPanel::renderPandaBanner(App& app) {
         ImGui::TextDisabled("%s", greeting);
     }
     ImGui::EndChild();
-    ImGui::PopStyleColor(); 
+    ImGui::PopStyleColor();
 
     ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
     ImGui::Separator();
     ImGui::PopStyleColor();
 }
-
 
 std::vector<EditorPanel::LuaCodeBlock> EditorPanel::parseLuaBlocks(const std::string& content) {
     std::vector<LuaCodeBlock> blocks;
@@ -96,12 +92,12 @@ std::vector<EditorPanel::LuaCodeBlock> EditorPanel::parseLuaBlocks(const std::st
                 current.startLine = lineNum;
             }
         } else {
-            
+
             std::string trimmed = line;
             size_t start = trimmed.find_first_not_of(" \t");
             if (start != std::string::npos)
                 trimmed = trimmed.substr(start);
-            
+
             std::string trimEnd = trimmed;
             while (!trimEnd.empty() && (trimEnd.back() == ' ' || trimEnd.back() == '\t' || trimEnd.back() == '\r'))
                 trimEnd.pop_back();
@@ -117,7 +113,6 @@ std::vector<EditorPanel::LuaCodeBlock> EditorPanel::parseLuaBlocks(const std::st
     }
     return blocks;
 }
-
 
 void EditorPanel::render(App& app) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 8.0f));
@@ -180,9 +175,6 @@ void EditorPanel::render(App& app) {
 
     ImGui::Spacing();
 
-    
-
-  
     ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.12f, 0.20f, 0.36f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  ImVec4(0.17f, 0.30f, 0.52f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,   ImVec4(0.20f, 0.38f, 0.62f, 1.0f));
@@ -247,7 +239,6 @@ void EditorPanel::render(App& app) {
                        (int)note->links.size(),
                        (int)note->frontmatter.size());
 
-    
     {
         ImVec2 mc = ImGui::GetMainViewport()->GetCenter();
         ImGui::SetNextWindowPos(mc, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
@@ -256,7 +247,7 @@ void EditorPanel::render(App& app) {
         if (ImGui::BeginPopupModal("Exportar Contexto", nullptr,
                                    ImGuiWindowFlags_AlwaysAutoResize |
                                    ImGuiWindowFlags_NoMove)) {
-            
+
             ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f),
                                "Exportar contexto estructurado");
             ImGui::TextColored(ImVec4(0.55f, 0.56f, 0.66f, 1.0f),
@@ -271,7 +262,6 @@ void EditorPanel::render(App& app) {
             ImGui::PopStyleColor();
             ImGui::Spacing();
 
-            
             ImGui::TextColored(ImVec4(0.75f, 0.78f, 0.45f, 1.0f),
                                "Profundidad de enlaces:");
             ImGui::SetNextItemWidth(310.0f);
@@ -353,9 +343,8 @@ void EditorPanel::render(App& app) {
         }
     }
 
-    
     ImGui::Spacing();
-    ImGui::Spacing();   
+    ImGui::Spacing();
     ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
     ImGui::Separator();
     ImGui::PopStyleColor();
@@ -429,7 +418,6 @@ void EditorPanel::render(App& app) {
         ImGui::Spacing();
     }
 
-    
     ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
     ImGui::Separator();
     ImGui::PopStyleColor();
@@ -489,9 +477,8 @@ void EditorPanel::render(App& app) {
                 ImGui::TextUnformatted(block.code.c_str());
                 ImGui::PopStyleColor();
                 ImGui::EndChild();
-                ImGui::PopStyleColor(); 
+                ImGui::PopStyleColor();
 
-                
                 ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.12f, 0.45f, 0.40f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  ImVec4(0.18f, 0.58f, 0.52f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonActive,   ImVec4(0.08f, 0.35f, 0.30f, 1.0f));
@@ -521,7 +508,7 @@ void EditorPanel::render(App& app) {
 
         ImGui::EndChild();
     } else {
-        
+
         ImGui::PushStyleColor(ImGuiCol_FrameBg,   ImVec4(0.08f, 0.08f, 0.12f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, ImVec4(0.06f, 0.06f, 0.09f, 1.0f));
         if (ImGui::InputTextMultiline("##editor", m_editBuffer, BUFFER_SIZE,
@@ -532,7 +519,6 @@ void EditorPanel::render(App& app) {
         ImGui::PopStyleColor(2);
     }
 
-    
     ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
     ImGui::Separator();
     ImGui::PopStyleColor();
@@ -579,4 +565,4 @@ void EditorPanel::render(App& app) {
     ImGui::End();
 }
 
-} 
+}
