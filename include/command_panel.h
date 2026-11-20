@@ -1,11 +1,4 @@
 #pragma once
-// ============================================================================
-// CommandPanel — Centro de Mando (Dashboard)
-//
-// Panel de control con estadísticas del workspace, indicadores de salud,
-// acciones rápidas, y actividad reciente. Proporciona una vista panorámica
-// del estado de todas las notas y conexiones.
-// ============================================================================
 
 #include <string>
 #include <vector>
@@ -20,20 +13,20 @@ public:
     void render(App& app);
 
 private:
-    // Cache de estadísticas (recalcular solo cuando cambie algo)
+
     struct Stats {
         int totalNotes      = 0;
         int totalLinks      = 0;
-        int orphanNotes     = 0;    // sin enlaces entrantes ni salientes
-        int brokenLinks     = 0;    // enlaces a notas que no existen
-        int typeCount       = 0;    // tipos únicos de notas
+        int orphanNotes     = 0;
+        int brokenLinks     = 0;
+        int typeCount       = 0;
         float avgLinksPerNote = 0.0f;
-        float graphDensity   = 0.0f; // aristas / aristas posibles
-        std::vector<std::pair<std::string, int>> topConnected; // top 5 más conectadas
-        std::vector<std::pair<std::string, int>> typeDistribution; // tipo → conteo
+        float graphDensity   = 0.0f;
+        std::vector<std::pair<std::string, int>> topConnected;
+        std::vector<std::pair<std::string, int>> typeDistribution;
         std::vector<std::string> orphanList;
         std::vector<std::string> brokenLinkList;
-        std::vector<std::pair<std::string, std::string>> recentNotes; // id, title
+        std::vector<std::pair<std::string, std::string>> recentNotes;
     };
 
     Stats m_stats;
@@ -44,4 +37,4 @@ private:
     void recalcStats(App& app);
 };
 
-} // namespace nodepanda
+}
