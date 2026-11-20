@@ -224,3 +224,44 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/data/sql")
             "$<TARGET_FILE_DIR:NodePanda>/data/sql"
     )
 endif()
+
+option(NODEPANDA_BUILD_TESTS "Build Node Panda C++ test suite" ON)
+if(NODEPANDA_BUILD_TESTS)
+    enable_testing()
+    add_executable(NodePandaTests
+        tests/nodepanda_tests.cpp
+        src/crypto_engine.cpp
+        src/auth_manager.cpp
+        src/frontmatter.cpp
+        src/markdown_parser.cpp
+        src/note.cpp
+        src/note_manager.cpp
+        src/outliner_engine.cpp
+        src/task_engine.cpp
+        src/datalog_engine.cpp
+        src/pdf_engine.cpp
+        src/table_view_engine.cpp
+        src/vector_engine.cpp
+        src/math_renderer.cpp
+        src/websocket_rtc.cpp
+        src/mobile_bridge.cpp
+        src/texture_manager.cpp
+        src/image_cache.cpp
+        src/ai_catalog.cpp
+        src/ai_provider.cpp
+        src/ui_theme.cpp
+    )
+    target_include_directories(NodePandaTests PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/third_party
+    )
+    target_link_libraries(NodePandaTests PRIVATE
+        imgui_lib
+        OpenGL::GL
+        Threads::Threads
+    )
+    if(WIN32)
+        target_link_libraries(NodePandaTests PRIVATE ws2_32 winhttp)
+    endif()
+    add_test(NAME NodePandaCoreTests COMMAND NodePandaTests)
+endif()
