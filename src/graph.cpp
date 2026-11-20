@@ -88,4 +88,4 @@ int Graph::getNodeAtPosition(float x, float y) const {
     return -1;
 }
 
-} 
+}
