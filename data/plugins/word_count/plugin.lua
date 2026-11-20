@@ -1,9 +1,3 @@
--- ═══════════════════════════════════════════════════════════════════════════
---  Plugin: Word Count / Reading Time
---  Panel compacto con metricas de la nota activa: palabras, caracteres,
---  tiempo de lectura estimado (200 ppm), lineas y enlaces.
--- ═══════════════════════════════════════════════════════════════════════════
-
 local last_note_id = ""
 local stats = {
     words = 0,
@@ -25,28 +19,23 @@ local function actualizar(nota_id)
         return
     end
 
-    -- Palabras
     local words = 0
     for _ in contenido:gmatch("%S+") do
         words = words + 1
     end
 
-    -- Caracteres (sin espacios en blanco)
     local chars = #contenido:gsub("%s", "")
 
-    -- Lineas
     local lines = 1
     for _ in contenido:gmatch("\n") do
         lines = lines + 1
     end
 
-    -- Enlaces [[...]]
     local link_count = 0
     for _ in contenido:gmatch("%[%[.-%]%]") do
         link_count = link_count + 1
     end
 
-    -- Tiempo de lectura (200 palabras por minuto)
     local minutes = math.ceil(words / 200)
     if minutes < 1 and words > 0 then minutes = 1 end
 
@@ -68,14 +57,12 @@ function on_load()
             return
         end
 
-        -- Titulo de la nota
         local titulo = notas.titulo(nota_id)
         if titulo == "" then titulo = nota_id end
         imgui.texto_color(0.28, 0.82, 0.76, 1.0, titulo)
         imgui.separador()
         imgui.espacio()
 
-        -- Metricas en dos columnas
         imgui.columns(2, "##wc_cols")
 
         imgui.texto_color(0.45, 0.46, 0.58, 1.0, "Palabras")
@@ -107,7 +94,6 @@ function on_load()
 
         imgui.columns_end()
 
-        -- Barra de progreso visual
         imgui.espacio()
         local progress = math.min(stats.words / 1000, 1.0)
         imgui.progress_bar(progress, stats.words .. " / 1000 palabras")
@@ -117,7 +103,6 @@ end
 function on_frame()
     local nota_id = notas.seleccionada()
 
-    -- Solo recalcular si cambio la nota
     if nota_id ~= last_note_id then
         last_note_id = nota_id
         actualizar(nota_id)
