@@ -25,11 +25,10 @@ public:
     bool isReady() const { return m_ready; }
     void invalidate() { m_ready = false; }
 
-    // Get top N nodes by pagerank
     std::vector<NodeMetrics> topByPageRank(int n) const;
-    // Get top N nodes by betweenness
+
     std::vector<NodeMetrics> topByBetweenness(int n) const;
-    // Get all nodes in a community
+
     std::vector<std::string> getCommunityMembers(int communityId) const;
 
 private:
@@ -42,4 +41,4 @@ private:
     bool m_ready = false;
 };
 
-} // namespace nodepanda
+}
