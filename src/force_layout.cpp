@@ -44,7 +44,6 @@ void ForceLayout::step(Graph& graph) {
         }
     }
 
-    
     if (useBarnesHut && n > 20) {
         std::vector<float> posX(n), posY(n);
         for (int i = 0; i < n; ++i) {
@@ -81,7 +80,6 @@ void ForceLayout::step(Graph& graph) {
         }
     }
 
-
     for (const auto& edge : edges) {
         if (edge.from < 0 || edge.from >= n || edge.to < 0 || edge.to >= n) continue;
         auto& a = nodes[edge.from];
@@ -101,7 +99,6 @@ void ForceLayout::step(Graph& graph) {
         if (!b.pinned) { b.vx -= fx; b.vy -= fy; b.vz -= fz; }
     }
 
-    
     float centroidX = 0.0f, centroidY = 0.0f, centroidZ = 0.0f;
     for (const auto& node : nodes) {
         centroidX += node.x;
@@ -132,9 +129,8 @@ void ForceLayout::step(Graph& graph) {
         }
     }
 
-    
     float maxDisplacement = std::max(10.0f, 50.0f * m_temperature);
-    float totalMovement = 0.0f;  
+    float totalMovement = 0.0f;
 
     for (auto& node : nodes) {
         if (node.pinned) continue;
@@ -160,4 +156,4 @@ void ForceLayout::step(Graph& graph) {
     }
 }
 
-} 
+}
