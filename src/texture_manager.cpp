@@ -1,4 +1,3 @@
-
 #include "stb_image.h"
 #include "texture_manager.h"
 
@@ -19,7 +18,6 @@ namespace nodepanda {
 TextureManager::~TextureManager() {
     clear();
 }
-
 
 bool TextureManager::LoadTextureFromFile(const char* filename,
                                           GLuint* out_texture,
@@ -71,7 +69,6 @@ bool TextureManager::LoadTextureFromFile(const char* filename,
     return true;
 }
 
-
 const TextureInfo* TextureManager::getTexture(const std::string& filepath) {
     GLuint tex = 0;
     int w = 0, h = 0;
@@ -80,7 +77,6 @@ const TextureInfo* TextureManager::getTexture(const std::string& filepath) {
     }
     return nullptr;
 }
-
 
 void TextureManager::clear() {
     for (auto& [path, info] : m_cache) {
@@ -91,7 +87,6 @@ void TextureManager::clear() {
     m_cache.clear();
 }
 
-
 bool TextureManager::isSupportedImage(const std::string& extension) {
     std::string ext = extension;
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
@@ -100,4 +95,4 @@ bool TextureManager::isSupportedImage(const std::string& extension) {
            ext == ".webp";
 }
 
-} 
+}
