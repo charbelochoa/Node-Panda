@@ -27,7 +27,7 @@ templates["Reunion"] = {
 
 templates["Proyecto"] = {
     frontmatter = "tipo: proyecto\ntags: proyecto\nfecha: %FECHA%\nestado: activo",
-    body = [[
+    body = [=[
 # Proyecto: %TITULO%
 
 ## Objetivo
@@ -48,12 +48,12 @@ templates["Proyecto"] = {
 
 ## Notas relacionadas
 - [[]]
-]]
+]=]
 }
 
 templates["Concepto"] = {
     frontmatter = "tipo: concepto\ntags: concepto, conocimiento\nfecha: %FECHA%",
-    body = [[
+    body = [=[
 # %TITULO%
 
 ## Definicion
@@ -72,7 +72,7 @@ templates["Concepto"] = {
 
 ## Referencias
 -
-]]
+]=]
 }
 
 templates["Tarea"] = {
