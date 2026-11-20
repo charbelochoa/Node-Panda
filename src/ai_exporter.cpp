@@ -1,5 +1,3 @@
-
-
 #include "ai_exporter.h"
 #include "note_manager.h"
 #include "note.h"
@@ -13,7 +11,6 @@
 
 namespace nodepanda {
 
-
 std::vector<std::string> GetContextNoteIds(
     const std::string& startNoteId,
     int                depth,
@@ -23,9 +20,8 @@ std::vector<std::string> GetContextNoteIds(
     if (startNoteId.empty()) return result;
 
     const std::string resolvedStart = noteManager.resolveAlias(startNoteId);
-    if (!noteManager.getNoteById(resolvedStart)) return result; 
+    if (!noteManager.getNoteById(resolvedStart)) return result;
 
-    
     std::queue<std::pair<std::string, int>> bfsQueue;
     std::set<std::string>                   visited;
 
@@ -36,7 +32,6 @@ std::vector<std::string> GetContextNoteIds(
         auto [currentId, currentDepth] = bfsQueue.front();
         bfsQueue.pop();
 
-        
         result.push_back(currentId);
 
         if (currentDepth >= depth) continue;
@@ -45,13 +40,11 @@ std::vector<std::string> GetContextNoteIds(
         if (!currentNote) continue;
 
         for (const std::string& rawLink : currentNote->links) {
-            
+
             const std::string resolvedLink = noteManager.resolveAlias(rawLink);
 
-            
             if (!noteManager.getNoteById(resolvedLink)) continue;
 
-            
             if (visited.count(resolvedLink)) continue;
 
             visited.insert(resolvedLink);
@@ -61,7 +54,6 @@ std::vector<std::string> GetContextNoteIds(
 
     return result;
 }
-
 
 static std::string formatFrontmatter(const Note& note) {
     if (note.frontmatter.empty()) {
@@ -74,7 +66,6 @@ static std::string formatFrontmatter(const Note& note) {
     }
     return out;
 }
-
 
 std::string CompileContext(
     const std::string& startNoteId,
@@ -102,7 +93,7 @@ std::string CompileContext(
 
     for (const std::string& noteId : noteIds) {
         Note* note = noteManager.getNoteById(noteId);
-        if (!note) continue; 
+        if (!note) continue;
 
         out << "--- INICIO DE NOTA: " << note->id << " ---\n";
 
@@ -124,8 +115,6 @@ std::string CompileContext(
 
     return out.str();
 }
-
-
 
 static std::string escapeXml(const std::string& src) {
     std::string out;
@@ -227,4 +216,4 @@ VaultExportResult ExportVaultForClaude(NoteManager& noteManager) {
     return result;
 }
 
-} 
+}
