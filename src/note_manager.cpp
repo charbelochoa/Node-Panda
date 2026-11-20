@@ -23,7 +23,7 @@ void NoteManager::scanDirectory() {
             note.id = entry.path().stem().string();
             note.filepath = entry.path();
             note.loadFromFile();
-            
+
             std::string aliasStr = note.getFrontmatter("aliases");
             if (!aliasStr.empty()) {
                 std::istringstream as(aliasStr);
@@ -36,7 +36,7 @@ void NoteManager::scanDirectory() {
                     }
                 }
             }
-            
+
             m_notes[note.id] = std::move(note);
         }
     }
@@ -44,11 +44,11 @@ void NoteManager::scanDirectory() {
 
 Note* NoteManager::createNote(const std::string& name, const std::string& subfolder) {
     if (name.empty()) return nullptr;
-    if (m_notes.find(name) != m_notes.end()) return nullptr; 
+    if (m_notes.find(name) != m_notes.end()) return nullptr;
 
     Note note;
     note.id = name;
-    
+
     if (!subfolder.empty()) {
         auto dir = m_notesDir / subfolder;
         std::filesystem::create_directories(dir);
@@ -56,7 +56,7 @@ Note* NoteManager::createNote(const std::string& name, const std::string& subfol
     } else {
         note.filepath = m_notesDir / (name + ".md");
     }
-    
+
     note.content = "# " + name + "\n\nEscribe aqui tu nota...\n";
     note.title = name;
     {
@@ -134,13 +134,13 @@ bool NoteManager::renameNote(const std::string& oldId, const std::string& newId)
 Note* NoteManager::getNoteById(const std::string& id) {
     auto it = m_notes.find(id);
     if (it != m_notes.end()) return &it->second;
-    
+
     auto aliasIt = m_aliasMap.find(id);
     if (aliasIt != m_aliasMap.end()) {
         it = m_notes.find(aliasIt->second);
         if (it != m_notes.end()) return &it->second;
     }
-    
+
     return nullptr;
 }
 
@@ -185,7 +185,7 @@ bool NoteManager::createSubfolder(const std::string& name) {
 std::vector<std::string> NoteManager::getSubfolders() const {
     std::vector<std::string> folders;
     if (!std::filesystem::exists(m_notesDir)) return folders;
-    
+
     for (const auto& entry : std::filesystem::recursive_directory_iterator(m_notesDir)) {
         if (entry.is_directory()) {
             auto rel = std::filesystem::relative(entry.path(), m_notesDir);
@@ -227,7 +227,7 @@ std::vector<std::string> NoteManager::getBacklinks(const std::string& targetNote
             std::string resolved = resolveAlias(link);
             if (resolved == targetNoteId || link == targetNoteId) {
                 result.push_back(noteId);
-                break; 
+                break;
             }
         }
     }
@@ -245,7 +245,7 @@ bool NoteManager::reloadNote(const std::string& relativePath) {
         if (it != m_notes.end()) {
             m_notes.erase(it);
         }
-        return true; 
+        return true;
     }
 
     std::string noteId = fullPath.stem().string();
@@ -256,7 +256,7 @@ bool NoteManager::reloadNote(const std::string& relativePath) {
             it->second.loadFromFile();
             return true;
         }
-        return false; 
+        return false;
     } else {
         Note note;
         note.id = noteId;
@@ -281,4 +281,4 @@ bool NoteManager::reloadNote(const std::string& relativePath) {
     }
 }
 
-} 
+}
