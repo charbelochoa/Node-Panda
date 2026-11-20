@@ -8,12 +8,12 @@
 namespace nodepanda {
 
 struct Note {
-    std::string id;                      
-    std::string title;                   
-    std::string content;                 
-    std::filesystem::path filepath;      
-    std::vector<std::string> links;      
-    std::map<std::string, std::string> frontmatter;  
+    std::string id;
+    std::string title;
+    std::string content;
+    std::filesystem::path filepath;
+    std::vector<std::string> links;
+    std::map<std::string, std::string> frontmatter;
     bool dirty = false;
     std::chrono::system_clock::time_point lastModified;
 
@@ -31,4 +31,4 @@ struct Note {
     std::string serializeFrontmatter() const;
 };
 
-} 
+}
