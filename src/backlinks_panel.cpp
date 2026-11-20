@@ -31,7 +31,7 @@ void BacklinksPanel::recalculate(App& app) {
                     std::istringstream aliasStream(aliasStr);
                     std::string alias;
                     while (std::getline(aliasStream, alias, ',')) {
-                        // Trim
+
                         size_t s = alias.find_first_not_of(" \t");
                         size_t e = alias.find_last_not_of(" \t");
                         if (s != std::string::npos) alias = alias.substr(s, e - s + 1);
@@ -60,11 +60,11 @@ void BacklinksPanel::recalculate(App& app) {
                     if (before == "[[") isLinked = true;
                 }
                 if (!isLinked) {
-                    
+
                     size_t ctxStart = (pos > 30) ? pos - 30 : 0;
                     size_t ctxLen = std::min<size_t>(80, note.content.size() - ctxStart);
                     std::string context = "..." + note.content.substr(ctxStart, ctxLen) + "...";
-                    
+
                     std::replace(context.begin(), context.end(), '\n', ' ');
                     std::replace(context.begin(), context.end(), '\r', ' ');
                     m_unlinkedMentions.push_back({noteId, context});
@@ -73,7 +73,6 @@ void BacklinksPanel::recalculate(App& app) {
         }
     }
 
-    
     std::sort(m_backlinks.begin(), m_backlinks.end());
 }
 
@@ -86,17 +85,14 @@ void BacklinksPanel::render(App& app) {
         return;
     }
 
-    
     if (m_cachedNoteId != app.selectedNoteId) {
         m_cachedNoteId = app.selectedNoteId;
         recalculate(app);
     }
 
-    
     ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Nota: %s", app.selectedNoteId.c_str());
     ImGui::Separator();
 
-    
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Enlaces Entrantes", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (m_backlinks.empty()) {
@@ -106,7 +102,7 @@ void BacklinksPanel::render(App& app) {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.9f, 0.5f, 1.0f));
                 if (ImGui::Selectable(("  [[" + bl + "]]").c_str())) {
                     app.selectedNoteId = bl;
-                    m_cachedNoteId.clear(); 
+                    m_cachedNoteId.clear();
                 }
                 ImGui::PopStyleColor();
 
@@ -125,7 +121,6 @@ void BacklinksPanel::render(App& app) {
         ImGui::Text("  Total: %d", (int)m_backlinks.size());
     }
 
-    
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Menciones Sin Vincular", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (m_unlinkedMentions.empty()) {
@@ -140,14 +135,13 @@ void BacklinksPanel::render(App& app) {
                 ImGui::TextWrapped("    %s", context.c_str());
                 ImGui::PopStyleColor();
 
-                
                 std::string btnId = "Vincular##" + noteId;
                 ImGui::SameLine();
                 if (ImGui::SmallButton(btnId.c_str())) {
-                    
+
                     auto* note = app.getNoteManager().getNoteById(noteId);
                     if (note) {
-                        
+
                         size_t pos = note->content.find(app.selectedNoteId);
                         if (pos != std::string::npos) {
                             std::string linked = "[[" + app.selectedNoteId + "]]";
@@ -155,7 +149,7 @@ void BacklinksPanel::render(App& app) {
                             note->dirty = true;
                             note->parseLinks();
                             app.graphNeedsRebuild = true;
-                            m_cachedNoteId.clear(); 
+                            m_cachedNoteId.clear();
                         }
                     }
                 }
@@ -166,7 +160,6 @@ void BacklinksPanel::render(App& app) {
         ImGui::Text("  Total: %d", (int)m_unlinkedMentions.size());
     }
 
-    
     ImGui::Spacing();
     if (ImGui::Button("Refrescar", ImVec2(-1, 25))) {
         m_cachedNoteId.clear();
@@ -175,4 +168,4 @@ void BacklinksPanel::render(App& app) {
     ImGui::End();
 }
 
-} 
+}
