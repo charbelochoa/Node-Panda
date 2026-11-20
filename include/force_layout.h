@@ -14,7 +14,7 @@ public:
     float centralGravity = 0.002f;
     float barnesHutTheta = 0.5f;
     bool useBarnesHut = true;
-    bool mode3D = false;  // habilitar fuerzas en eje Z
+    bool mode3D = false;
 
     void initialize(Graph& graph, float canvasWidth, float canvasHeight);
 
@@ -32,4 +32,4 @@ private:
     QuadTree m_quadTree;
 };
 
-} 
+}
