@@ -1,0 +1,12 @@
+{
+  "name": "Task Radar",
+  "id": "task_radar",
+  "version": "1.0.0",
+  "author": "NodePanda",
+  "description": "Rastrea tareas Markdown pendientes y completadas en todas las notas del vault.",
+  "hooks": [
+    "on_load",
+    "on_frame"
+  ],
+  "enabled": true
+}
