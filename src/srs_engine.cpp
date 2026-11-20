@@ -187,4 +187,32 @@ void SRSEngine::rateCard(const std::string& noteId, SRSRating rating, NoteManage
     writeCardToNote(card, nm);
 }
 
+std::vector<ClozeCard> SRSEngine::extractClozeCards(const NoteManager& nm) const {
+    std::vector<ClozeCard> cards;
+    for (const auto& [id, note] : nm.getAllNotes()) {
+        std::istringstream iss(note.content);
+        std::string line;
+        while (std::getline(iss, line)) {
+            size_t cPos = line.find("{{cloze ");
+            if (cPos != std::string::npos) {
+                size_t endPos = line.find("}}", cPos + 8);
+                if (endPos != std::string::npos) {
+                    ClozeCard cc;
+                    cc.noteId = id;
+                    cc.answer = line.substr(cPos + 8, endPos - (cPos + 8));
+                    cc.prompt = line.substr(0, cPos) + "[...]" + line.substr(endPos + 2);
+                    cards.push_back(cc);
+                }
+            } else if (line.find("#card") != std::string::npos) {
+                ClozeCard cc;
+                cc.noteId = id;
+                cc.prompt = line;
+                cc.answer = note.title;
+                cards.push_back(cc);
+            }
+        }
+    }
+    return cards;
+}
+
 }
