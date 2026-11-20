@@ -1,12 +1,5 @@
--- ═══════════════════════════════════════════════════════════════════════════
---  Plugin: Theme Switcher
---  Permite cambiar el tema de colores de la interfaz ImGui en tiempo de
---  ejecucion. Incluye 5 temas predefinidos.
--- ═══════════════════════════════════════════════════════════════════════════
-
 local themes = {}
 
--- ── Tema por defecto de Node Panda ───────────────────────────────────────
 themes["Node Panda (Default)"] = {
     bg          = "121219",
     bg_child    = "14141C",
@@ -29,7 +22,6 @@ themes["Node Panda (Default)"] = {
     scrollbar   = "373A52",
 }
 
--- ── Nord ─────────────────────────────────────────────────────────────────
 themes["Nord"] = {
     bg          = "2E3440",
     bg_child    = "3B4252",
@@ -52,7 +44,6 @@ themes["Nord"] = {
     scrollbar   = "4C566A",
 }
 
--- ── Catppuccin Mocha ─────────────────────────────────────────────────────
 themes["Catppuccin Mocha"] = {
     bg          = "1E1E2E",
     bg_child    = "181825",
@@ -75,7 +66,6 @@ themes["Catppuccin Mocha"] = {
     scrollbar   = "585B70",
 }
 
--- ── Gruvbox Dark ─────────────────────────────────────────────────────────
 themes["Gruvbox Dark"] = {
     bg          = "282828",
     bg_child    = "1D2021",
@@ -98,7 +88,6 @@ themes["Gruvbox Dark"] = {
     scrollbar   = "665C54",
 }
 
--- ── Dracula ──────────────────────────────────────────────────────────────
 themes["Dracula"] = {
     bg          = "282A36",
     bg_child    = "21222C",
@@ -121,7 +110,6 @@ themes["Dracula"] = {
     scrollbar   = "6272A4",
 }
 
--- ── Aplicar tema ─────────────────────────────────────────────────────────
 local function aplicar_tema(nombre)
     local tema = themes[nombre]
     if not tema then
@@ -135,18 +123,15 @@ local function aplicar_tema(nombre)
     print("[Theme Switcher] Tema cambiado a: " .. nombre)
 end
 
--- ── on_load ──────────────────────────────────────────────────────────────
 function on_load()
     print("[Theme Switcher] Plugin activo con " .. 5 .. " temas")
 
-    -- Restaurar ultimo tema usado
     local ultimo = app.leer_persistido("tema_actual")
     if ultimo ~= "" and themes[ultimo] then
         ui.tema(themes[ultimo])
         print("[Theme Switcher] Tema restaurado: " .. ultimo)
     end
 
-    -- Registrar un menu item por cada tema
     for nombre, _ in pairs(themes) do
         ui.menu_item("Tema: " .. nombre, function()
             aplicar_tema(nombre)
