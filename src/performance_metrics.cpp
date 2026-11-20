@@ -1,5 +1,3 @@
-
-
 #include "performance_metrics.h"
 #include <numeric>
 
@@ -7,7 +5,7 @@
     #define NOMINMAX
     #define WIN32_LEAN_AND_MEAN
     #include <windows.h>
-    #include <psapi.h>       
+    #include <psapi.h>
     #pragma comment(lib, "psapi.lib")
 #endif
 
@@ -47,9 +45,9 @@ void PerformanceMetrics::updateMemoryUsage() {
         m_memoryMB = static_cast<float>(pmc.WorkingSetSize) / (1024.0f * 1024.0f);
     }
 #else
-    
+
     m_memoryMB = 0.0f;
 #endif
 }
 
-} 
+}
