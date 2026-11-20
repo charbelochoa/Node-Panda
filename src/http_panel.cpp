@@ -15,7 +15,6 @@ void HttpPanel::render(App& app) {
     auto& httpServer = app.getHttpServer();
     bool isRunning = httpServer.isRunning();
 
-    // Status indicator with color
     ImVec4 statusColor = isRunning ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f) : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
     ImGui::TextColored(statusColor, isRunning ? "Estado: ACTIVO" : "Estado: INACTIVO");
     ImGui::SameLine();
@@ -25,14 +24,12 @@ void HttpPanel::render(App& app) {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Port display
     ImGui::Text("Puerto: %d", httpServer.getPort());
     ImGui::SameLine();
     ImGui::TextDisabled("(localhost:%d)", httpServer.getPort());
 
     ImGui::Spacing();
 
-    // URL display
     ImGui::Text("URL Base:");
     ImGui::SameLine();
     ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "http://localhost:%d", httpServer.getPort());
@@ -41,7 +38,6 @@ void HttpPanel::render(App& app) {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Start/Stop buttons
     if (!isRunning) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
         if (ImGui::Button("Iniciar Servidor", ImVec2(200, 0))) {
@@ -60,7 +56,6 @@ void HttpPanel::render(App& app) {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Available endpoints
     ImGui::Text("Endpoints Disponibles:");
     ImGui::Spacing();
 
@@ -106,7 +101,6 @@ void HttpPanel::render(App& app) {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Examples
     ImGui::Text("Ejemplos de Uso:");
     ImGui::TextDisabled("http://localhost:%d/api/notas", httpServer.getPort());
     ImGui::TextDisabled("http://localhost:%d/api/memoria/buscar?q=python&n=5", httpServer.getPort());
@@ -114,4 +108,4 @@ void HttpPanel::render(App& app) {
     ImGui::End();
 }
 
-} // namespace nodepanda
+}
