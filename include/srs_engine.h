@@ -10,46 +10,38 @@ class NoteManager;
 struct SRSCard {
     std::string noteId;
     std::string title;
-    int interval = 1;        // days until next review
-    float easeFactor = 2.5f; // SM-2 ease factor
-    int repetitions = 0;     // successful repetitions count
-    std::string nextReview;  // YYYY-MM-DD
-    std::string lastReview;  // YYYY-MM-DD
+    int interval = 1;
+    float easeFactor = 2.5f;
+    int repetitions = 0;
+    std::string nextReview;
+    std::string lastReview;
     bool isDue = false;
 };
 
-// SM-2 quality ratings
 enum class SRSRating {
-    Again = 0,  // Complete blackout
-    Hard  = 2,  // Remembered with difficulty
-    Good  = 3,  // Correct with some hesitation
-    Easy  = 5   // Perfect recall
+    Again = 0,
+    Hard  = 2,
+    Good  = 3,
+    Easy  = 5
 };
 
 class SRSEngine {
 public:
-    // Scan all notes and build review queue from frontmatter
+
     void buildQueue(NoteManager& nm);
 
-    // Rate a card and update its SRS data in frontmatter
     void rateCard(const std::string& noteId, SRSRating rating, NoteManager& nm);
 
-    // Enroll a note into SRS (sets initial frontmatter)
     void enrollNote(const std::string& noteId, NoteManager& nm);
 
-    // Remove note from SRS
     void unenrollNote(const std::string& noteId, NoteManager& nm);
 
-    // Is this note enrolled in SRS?
     bool isEnrolled(const std::string& noteId, NoteManager& nm) const;
 
-    // Get today's due cards
     const std::vector<SRSCard>& getDueCards() const { return m_dueCards; }
 
-    // Get all enrolled cards
     const std::vector<SRSCard>& getAllCards() const { return m_allCards; }
 
-    // Stats
     int totalEnrolled() const { return (int)m_allCards.size(); }
     int dueToday() const { return (int)m_dueCards.size(); }
 
@@ -64,4 +56,4 @@ private:
     std::vector<SRSCard> m_allCards;
 };
 
-} // namespace nodepanda
+}
