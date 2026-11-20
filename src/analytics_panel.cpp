@@ -12,7 +12,6 @@ void AnalyticsPanel::render(App& app) {
     const auto& graph = app.getGraph();
     int currentNodeCount = graph.getNodes().size();
 
-    // Auto-recalculate if node count changed
     if (currentNodeCount != m_cachedNodeCount) {
         m_analytics.analyze(graph);
         m_cachedNodeCount = currentNodeCount;
@@ -23,7 +22,6 @@ void AnalyticsPanel::render(App& app) {
         return;
     }
 
-    // Recalculate button
     if (ImGui::Button("Recalcular", ImVec2(120, 0))) {
         m_analytics.analyze(graph);
         m_cachedNodeCount = currentNodeCount;
@@ -35,10 +33,8 @@ void AnalyticsPanel::render(App& app) {
         return;
     }
 
-    // Tab bar
     if (ImGui::BeginTabBar("AnalyticsTabBar")) {
 
-        // PageRank Tab
         if (ImGui::BeginTabItem("PageRank")) {
             ImGui::Text("Top 15 Nodos por PageRank");
             ImGui::Separator();
@@ -53,14 +49,12 @@ void AnalyticsPanel::render(App& app) {
                 oss << std::fixed << std::setprecision(4) << metric.pageRank;
                 std::string scoreStr = oss.str();
 
-                // Selectable row with rank, noteId, and progress bar
                 if (ImGui::Selectable(
                     (std::to_string(rank) + ". " + metric.noteId).c_str(),
                     app.selectedNoteId == metric.noteId)) {
                     app.selectedNoteId = metric.noteId;
                 }
 
-                // Progress bar for score
                 ImGui::SameLine();
                 ImGui::ProgressBar(metric.pageRank, ImVec2(100, 0), scoreStr.c_str());
 
@@ -71,7 +65,6 @@ void AnalyticsPanel::render(App& app) {
             ImGui::EndTabItem();
         }
 
-        // Betweenness Centrality Tab
         if (ImGui::BeginTabItem("Centralidad")) {
             ImGui::Text("Top 15 Nodos por Centralidad");
             ImGui::Separator();
@@ -102,7 +95,6 @@ void AnalyticsPanel::render(App& app) {
             ImGui::EndTabItem();
         }
 
-        // Communities Tab
         if (ImGui::BeginTabItem("Comunidades")) {
             int communityCount = m_analytics.communityCount();
             ImGui::Text("Total de Comunidades: %d", communityCount);
@@ -137,4 +129,4 @@ void AnalyticsPanel::render(App& app) {
     ImGui::End();
 }
 
-} // namespace nodepanda
+}
