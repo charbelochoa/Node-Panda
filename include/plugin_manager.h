@@ -45,7 +45,7 @@ struct PluginPanelData {
     std::string name;
     int renderRef = -1;
     lua_State* luaState = nullptr;
-    bool open = true;
+    bool open = false;
 };
 
 struct PluginNotification {
