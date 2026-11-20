@@ -5,7 +5,7 @@
 namespace nodepanda {
 
 void SRSPanel::render(App& app) {
-    // Initialize on first render
+
     if (!m_initialized) {
         m_engine.buildQueue(app.getNoteManager());
         m_initialized = true;
@@ -14,9 +14,9 @@ void SRSPanel::render(App& app) {
     }
 
     if (ImGui::Begin("Repeticion Espaciada", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        // Tab bar
+
         if (ImGui::BeginTabBar("##SRSTabs")) {
-            // Tab 1: Review
+
             if (ImGui::BeginTabItem("Revision")) {
                 const auto& dueCards = m_engine.getDueCards();
                 int dueCount = m_engine.dueToday();
@@ -28,7 +28,7 @@ void SRSPanel::render(App& app) {
                     ImGui::Text("Revision completada!");
                     ImGui::Spacing();
                 } else {
-                    // Validate current card index
+
                     if (m_currentCard >= (int)dueCards.size()) {
                         m_currentCard = 0;
                     }
@@ -37,16 +37,14 @@ void SRSPanel::render(App& app) {
                     Note* note = app.getNoteManager().getNoteById(currentCard.noteId);
 
                     if (note) {
-                        // Show progress
+
                         ImGui::Text("%d / %d", m_currentCard + 1, dueCount);
                         ImGui::Spacing();
 
-                        // Show card title
                         ImGui::TextColored(ImVec4(0.7f, 0.9f, 1.0f, 1.0f), "Pregunta: %s",
                                          currentCard.title.c_str());
                         ImGui::Spacing();
 
-                        // Show preview of content
                         std::string preview = note->content;
                         if (preview.length() > 200) {
                             preview = preview.substr(0, 200) + "...";
@@ -54,7 +52,6 @@ void SRSPanel::render(App& app) {
                         ImGui::TextWrapped("(Respuesta oculta)");
                         ImGui::Spacing();
 
-                        // Show answer button
                         if (ImGui::Button("Mostrar respuesta", ImVec2(150, 0))) {
                             m_showAnswer = !m_showAnswer;
                         }
@@ -67,13 +64,11 @@ void SRSPanel::render(App& app) {
 
                         ImGui::Spacing();
 
-                        // Rating buttons
                         ImGui::Text("Califica tu respuesta:");
                         ImGui::Spacing();
 
                         bool rated = false;
 
-                        // De nuevo (Again) - Red
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.9f, 0.3f, 0.3f, 1.0f));
                         ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
                                            ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
@@ -85,7 +80,6 @@ void SRSPanel::render(App& app) {
 
                         ImGui::SameLine();
 
-                        // Dificil (Hard) - Orange
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.7f, 0.2f, 1.0f));
                         ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
                                            ImVec4(1.0f, 0.8f, 0.3f, 1.0f));
@@ -97,7 +91,6 @@ void SRSPanel::render(App& app) {
 
                         ImGui::SameLine();
 
-                        // Bien (Good) - Green
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.9f, 0.3f, 1.0f));
                         ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
                                            ImVec4(0.4f, 1.0f, 0.4f, 1.0f));
@@ -109,7 +102,6 @@ void SRSPanel::render(App& app) {
 
                         ImGui::SameLine();
 
-                        // Facil (Easy) - Blue
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 1.0f, 1.0f));
                         ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
                                            ImVec4(0.3f, 0.6f, 1.0f, 1.0f));
@@ -140,7 +132,6 @@ void SRSPanel::render(App& app) {
                 ImGui::EndTabItem();
             }
 
-            // Tab 2: Manage
             if (ImGui::BeginTabItem("Gestionar")) {
                 const auto& allNotes = app.getNoteManager().getAllNotes();
                 const auto& allCards = m_engine.getAllCards();
@@ -210,4 +201,4 @@ void SRSPanel::render(App& app) {
     }
 }
 
-} // namespace nodepanda
+}
