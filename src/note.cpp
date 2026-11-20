@@ -5,14 +5,12 @@
 
 namespace nodepanda {
 
-
 static std::string trimStr(const std::string& s) {
     size_t start = s.find_first_not_of(" \t\r\n");
     if (start == std::string::npos) return "";
     size_t end = s.find_last_not_of(" \t\r\n");
     return s.substr(start, end - start + 1);
 }
-
 
 bool Note::loadFromFile() {
     std::ifstream file(filepath);
@@ -34,7 +32,7 @@ bool Note::loadFromFile() {
             dirty = false;
             return true;
         }
-        afterFirst++; 
+        afterFirst++;
 
         size_t secondDelim = std::string::npos;
         size_t searchFrom = afterFirst;
@@ -74,7 +72,7 @@ bool Note::loadFromFile() {
 
             size_t bodyStart = raw.find('\n', secondDelim);
             if (bodyStart != std::string::npos) {
-                bodyStart++; // saltar el '\n' del "---"
+                bodyStart++;
                 content = raw.substr(bodyStart);
             } else {
                 content = "";
@@ -92,7 +90,6 @@ bool Note::loadFromFile() {
     return true;
 }
 
-
 bool Note::saveToFile() {
     std::ofstream file(filepath);
     if (!file.is_open()) return false;
@@ -106,7 +103,6 @@ bool Note::saveToFile() {
     return true;
 }
 
-
 std::string Note::serializeFrontmatter() const {
     if (frontmatter.empty()) return "";
 
@@ -119,7 +115,6 @@ std::string Note::serializeFrontmatter() const {
     return ss.str();
 }
 
-
 std::string Note::getFrontmatter(const std::string& key, const std::string& defaultVal) const {
     auto it = frontmatter.find(key);
     if (it != frontmatter.end()) return it->second;
@@ -130,7 +125,6 @@ void Note::setFrontmatter(const std::string& key, const std::string& value) {
     frontmatter[key] = value;
     dirty = true;
 }
-
 
 void Note::parseLinks() {
     links.clear();
@@ -153,7 +147,6 @@ void Note::parseLinks() {
     }
 }
 
-
 void Note::parseTitle() {
     std::istringstream stream(content);
     std::string line;
@@ -166,4 +159,4 @@ void Note::parseTitle() {
     title = id;
 }
 
-} 
+}
