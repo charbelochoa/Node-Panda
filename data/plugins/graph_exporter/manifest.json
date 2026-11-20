@@ -1,9 +1,11 @@
 {
-  "name":        "Graph Exporter",
-  "id":          "graph_exporter",
-  "version":     "1.0.0",
-  "author":      "NodePanda",
+  "name": "Graph Exporter",
+  "id": "graph_exporter",
+  "version": "2.0.0",
+  "author": "NodePanda",
   "description": "Exporta el grafo de notas a formato DOT (Graphviz) o JSON. Guarda en data/.",
-  "hooks":       ["on_load"],
-  "enabled":     true
+  "hooks": [
+    "on_load"
+  ],
+  "enabled": true
 }
