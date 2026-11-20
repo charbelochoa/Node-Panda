@@ -1,9 +1,8 @@
-
 #ifdef _WIN32
-    #define NOMINMAX            
+    #define NOMINMAX
     #define WIN32_LEAN_AND_MEAN
     #include <windows.h>
-    #include <commdlg.h>        
+    #include <commdlg.h>
     #pragma comment(lib, "comdlg32.lib")
 #endif
 
@@ -29,7 +28,7 @@ extern "C" {
 }
 
 #include "imgui.h"
-#include "imgui_internal.h"          
+#include "imgui_internal.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
@@ -44,7 +43,6 @@ namespace nodepanda {
 static void glfwErrorCallback(int error, const char* description) {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
-
 
 static std::string openFileDialog() {
 #ifdef _WIN32
@@ -65,7 +63,6 @@ static std::string openFileDialog() {
 #endif
     return {};
 }
-
 
 App::App()
     : m_explorerPanel(new ExplorerPanel())
@@ -99,18 +96,17 @@ App::~App() {
     delete m_httpPanel;
 }
 
-
 static void applyTheme() {
     ImGuiStyle& s = ImGui::GetStyle();
 
-    s.WindowRounding     = 0.0f;   
+    s.WindowRounding     = 0.0f;
     s.ChildRounding      = 6.0f;
     s.FrameRounding      = 5.0f;
     s.GrabRounding       = 5.0f;
     s.TabRounding        = 5.0f;
     s.PopupRounding      = 6.0f;
     s.ScrollbarRounding  = 6.0f;
-    s.WindowBorderSize   = 0.0f;   
+    s.WindowBorderSize   = 0.0f;
     s.ChildBorderSize    = 1.0f;
     s.FrameBorderSize    = 0.0f;
     s.PopupBorderSize    = 1.0f;
@@ -125,23 +121,20 @@ static void applyTheme() {
     s.IndentSpacing      = 16.0f;
     s.DockingSeparatorSize = 2.0f;
 
-    
     ImVec4* c = s.Colors;
 
-    
-    c[ImGuiCol_Text]                 = ImVec4(0.86f, 0.87f, 0.93f, 1.00f); 
+    c[ImGuiCol_Text]                 = ImVec4(0.86f, 0.87f, 0.93f, 1.00f);
     c[ImGuiCol_TextDisabled]         = ImVec4(0.40f, 0.41f, 0.50f, 1.00f);
-    c[ImGuiCol_TextSelectedBg]       = ImVec4(0.20f, 0.60f, 0.57f, 0.38f); 
+    c[ImGuiCol_TextSelectedBg]       = ImVec4(0.20f, 0.60f, 0.57f, 0.38f);
 
-    
-    c[ImGuiCol_WindowBg]             = ImVec4(0.07f, 0.07f, 0.10f, 1.00f); // #121219
-    c[ImGuiCol_ChildBg]              = ImVec4(0.08f, 0.08f, 0.11f, 1.00f); // #14141C
-    c[ImGuiCol_PopupBg]              = ImVec4(0.09f, 0.09f, 0.13f, 0.97f); // #17171F
+    c[ImGuiCol_WindowBg]             = ImVec4(0.07f, 0.07f, 0.10f, 1.00f);
+    c[ImGuiCol_ChildBg]              = ImVec4(0.08f, 0.08f, 0.11f, 1.00f);
+    c[ImGuiCol_PopupBg]              = ImVec4(0.09f, 0.09f, 0.13f, 0.97f);
 
     c[ImGuiCol_Border]               = ImVec4(0.18f, 0.18f, 0.26f, 0.55f);
     c[ImGuiCol_BorderShadow]         = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
 
-    c[ImGuiCol_FrameBg]              = ImVec4(0.11f, 0.11f, 0.17f, 1.00f); // #1C1C2B
+    c[ImGuiCol_FrameBg]              = ImVec4(0.11f, 0.11f, 0.17f, 1.00f);
     c[ImGuiCol_FrameBgHovered]       = ImVec4(0.15f, 0.16f, 0.23f, 1.00f);
     c[ImGuiCol_FrameBgActive]        = ImVec4(0.19f, 0.20f, 0.29f, 1.00f);
 
@@ -181,7 +174,7 @@ static void applyTheme() {
     c[ImGuiCol_TabUnfocused]         = ImVec4(0.07f, 0.08f, 0.12f, 1.00f);
     c[ImGuiCol_TabUnfocusedActive]   = ImVec4(0.10f, 0.16f, 0.28f, 1.00f);
 
-    c[ImGuiCol_DockingPreview]       = ImVec4(0.28f, 0.72f, 0.68f, 0.70f); 
+    c[ImGuiCol_DockingPreview]       = ImVec4(0.28f, 0.72f, 0.68f, 0.70f);
     c[ImGuiCol_DockingEmptyBg]       = ImVec4(0.06f, 0.06f, 0.09f, 1.00f);
 
     c[ImGuiCol_PlotLines]            = ImVec4(0.35f, 0.80f, 0.72f, 1.00f);
@@ -195,7 +188,6 @@ static void applyTheme() {
     c[ImGuiCol_ModalWindowDimBg]     = ImVec4(0.04f, 0.04f, 0.07f, 0.65f);
     c[ImGuiCol_DragDropTarget]       = ImVec4(0.28f, 0.88f, 0.82f, 0.90f);
 }
-
 
 static void setupDockLayout(ImGuiID dockspaceId, ImVec2 size) {
     ImGui::DockBuilderRemoveNode(dockspaceId);
@@ -220,20 +212,19 @@ static void setupDockLayout(ImGuiID dockspaceId, ImVec2 size) {
     ImGui::DockBuilderDockWindow("Explorador de Notas", leftId);
     ImGui::DockBuilderDockWindow("Editor de Notas",    centerId);
     ImGui::DockBuilderDockWindow("Consola Lua",        centerBottomId);
-    ImGui::DockBuilderDockWindow("Motor de Consultas",  centerBottomId); // tab junto a Consola
+    ImGui::DockBuilderDockWindow("Motor de Consultas",  centerBottomId);
     ImGui::DockBuilderDockWindow("Grafo de Nodos",     rightId);
     ImGui::DockBuilderDockWindow("Backlinks",           rightBottomId);
-    ImGui::DockBuilderDockWindow("Motor de Memoria",    rightBottomId); // tab junto a Backlinks
-    ImGui::DockBuilderDockWindow("Analisis de Grafo",   rightBottomId); // tab junto a Backlinks
-    ImGui::DockBuilderDockWindow("Centro de Mando",     leftId);        // tab junto a Explorador
-    ImGui::DockBuilderDockWindow("Gestor de Plugins",   leftId);        // tab junto a Explorador
-    ImGui::DockBuilderDockWindow("Repeticion Espaciada", leftId);       // tab junto a Explorador
-    ImGui::DockBuilderDockWindow("Control de Versiones", leftId);       // tab junto a Explorador
-    ImGui::DockBuilderDockWindow("Servidor API",         leftId);       // tab junto a Explorador
+    ImGui::DockBuilderDockWindow("Motor de Memoria",    rightBottomId);
+    ImGui::DockBuilderDockWindow("Analisis de Grafo",   rightBottomId);
+    ImGui::DockBuilderDockWindow("Centro de Mando",     leftId);
+    ImGui::DockBuilderDockWindow("Gestor de Plugins",   leftId);
+    ImGui::DockBuilderDockWindow("Repeticion Espaciada", leftId);
+    ImGui::DockBuilderDockWindow("Control de Versiones", leftId);
+    ImGui::DockBuilderDockWindow("Servidor API",         leftId);
 
     ImGui::DockBuilderFinish(dockspaceId);
 }
-
 
 bool App::init(const char* title, int width, int height) {
     m_windowWidth  = width;
@@ -252,22 +243,20 @@ bool App::init(const char* title, int width, int height) {
     m_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
     if (!m_window) { glfwTerminate(); return false; }
     glfwMakeContextCurrent(m_window);
-    glfwSwapInterval(1); 
+    glfwSwapInterval(1);
 
-    
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    io.ConfigDockingWithShift          = false; 
+    io.ConfigDockingWithShift          = false;
     io.ConfigWindowsMoveFromTitleBarOnly = true;
 
-    
     io.Fonts->AddFontDefault();
 
-    ImGui::StyleColorsDark(); 
+    ImGui::StyleColorsDark();
     applyTheme();
 
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
@@ -323,16 +312,13 @@ bool App::init(const char* title, int width, int height) {
     m_luaManager.init(this);
     m_pluginManager.init(this);
 
-    // Inicializar Git en el directorio de notas
     m_gitManager.init(notesDir);
 
-    // Iniciar servidor HTTP local
     m_httpServer.start(this, 8042);
 
     graphNeedsRebuild = true;
     return true;
 }
-
 
 void App::run() {
     while (!glfwWindowShouldClose(m_window)) {
@@ -384,11 +370,10 @@ void App::run() {
             renderMenuBar();
             ImGui::End();
 
-            
             if (selectedNoteId != m_prevSelectedNoteId) {
                 m_prevSelectedNoteId = selectedNoteId;
                 graphNeedsRebuild = true;
-                // Notificar a plugins que se abrió una nota
+
                 if (!selectedNoteId.empty()) {
                     m_pluginManager.callOnNoteOpen(selectedNoteId);
                 }
@@ -396,7 +381,7 @@ void App::run() {
             if (graphNeedsRebuild) {
                 rebuildGraph();
                 graphNeedsRebuild = false;
-                m_memoryEngine.markDirty(); // re-indexar en próximo frame del panel
+                m_memoryEngine.markDirty();
             }
             m_forceLayout.step(m_graph);
 
@@ -414,21 +399,19 @@ void App::run() {
             m_gitPanel->render(*this);
             m_httpPanel->render(*this);
 
-            // Llamar on_frame de todos los plugins activos
             m_pluginManager.callOnFrame();
 
             if (m_showDemoWindow) {
                 ImGui::ShowDemoWindow(&m_showDemoWindow);
             }
 
-        } 
+        }
 
-        
         ImGui::Render();
         int displayW, displayH;
         glfwGetFramebufferSize(m_window, &displayW, &displayH);
         glViewport(0, 0, displayW, displayH);
-        glClearColor(0.05f, 0.05f, 0.08f, 1.0f); 
+        glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(m_window);
@@ -436,14 +419,12 @@ void App::run() {
     }
 }
 
-
 void App::shutdown() {
     m_httpServer.stop();
     m_pluginManager.shutdown();
     m_fileWatcher.stop();
     m_noteManager.saveAllDirty();
 
-    // Auto-commit final al cerrar
     if (m_gitManager.isAvailable() && m_gitManager.hasChanges()) {
         m_gitManager.autoCommit("[autosave] Cierre de Node Panda");
     }
@@ -457,7 +438,6 @@ void App::shutdown() {
     glfwDestroyWindow(m_window);
     glfwTerminate();
 }
-
 
 void App::renderMenuBar() {
     if (!ImGui::BeginMenuBar()) return;
@@ -529,7 +509,7 @@ void App::renderMenuBar() {
     }
 
     if (ImGui::BeginMenu("Plugins")) {
-        // Menú items registrados por plugins
+
         auto& menuItems = m_pluginManager.getMenuItems();
         if (menuItems.empty()) {
             ImGui::MenuItem("(sin items de plugins)", nullptr, false, false);
@@ -570,13 +550,11 @@ void App::renderMenuBar() {
         ImGui::EndMenu();
     }
 
-    
     const char* watcherState = m_fileWatcher.isRunning() ? "ON" : "OFF";
     ImVec4 watcherColor = m_fileWatcher.isRunning()
         ? ImVec4(0.28f, 0.85f, 0.70f, 1.0f)
         : ImVec4(0.80f, 0.35f, 0.30f, 1.0f);
 
-    
     float currentFps = m_perfMetrics.fps();
     ImVec4 fpsColor = (currentFps >= 60.0f) ? ImVec4(0.30f, 0.88f, 0.55f, 1.0f)
                     : (currentFps >= 30.0f) ? ImVec4(0.90f, 0.80f, 0.25f, 1.0f)
@@ -585,7 +563,6 @@ void App::renderMenuBar() {
     float statusWidth = 580.0f;
     ImGui::SameLine(ImGui::GetWindowWidth() - statusWidth);
 
-    
     ImGui::TextColored(fpsColor, "%.0f FPS", currentFps);
     ImGui::SameLine();
     ImGui::TextColored(ImVec4(0.45f, 0.46f, 0.58f, 1.0f),
@@ -599,7 +576,6 @@ void App::renderMenuBar() {
 
     ImGui::EndMenuBar();
 
-    // ── Popup de resultado de exportación ────────────────────────────────────
     if (m_showExportResult) ImGui::OpenPopup("Resultado Exportacion");
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
@@ -626,7 +602,6 @@ void App::renderMenuBar() {
         ImGui::EndPopup();
     }
 }
-
 
 void App::rebuildGraph() {
     std::unordered_map<std::string, std::vector<std::string>> allLinks;
@@ -692,7 +667,6 @@ void App::rebuildGraph() {
     m_forceLayout.initialize(m_graph, 800.0f, 600.0f);
 }
 
-
 void App::processFileWatcherEvents() {
     auto changes = m_fileWatcher.pollChanges();
     if (changes.empty()) return;
@@ -725,7 +699,6 @@ void App::processFileWatcherEvents() {
     if (needsRebuild) graphNeedsRebuild = true;
 }
 
-
 void App::importFileToNotes(const std::string& srcPath) {
     namespace fs = std::filesystem;
     fs::path src(srcPath);
@@ -757,11 +730,10 @@ void App::importFileToNotes(const std::string& srcPath) {
             srcPath.c_str(), dest.string().c_str());
 }
 
-
 void App::renderHubBienvenida() {
 
     if (!m_hubPandaLoaded) {
-        m_hubPandaLoaded = true;          
+        m_hubPandaLoaded = true;
         namespace fs = std::filesystem;
         fs::path p1 = fs::current_path() / "panda.png";
         fs::path p2 = fs::current_path() / "data" / "panda.png";
@@ -796,17 +768,16 @@ void App::renderHubBienvenida() {
     const float winW = ImGui::GetContentRegionAvail().x;
     const float winH = ImGui::GetContentRegionAvail().y;
 
-    
     constexpr float IMG_SIZE = 128.0f;
     constexpr float TOTAL_H  =
-          IMG_SIZE + 24.0f    
-        + 16.0f  +  8.0f     
-        + 16.0f  + 28.0f     
-        + 21.0f              
-        + 16.0f  + 22.0f     
-        + 38.0f  + 16.0f     
-        + 21.0f              
-        + 44.0f;             
+          IMG_SIZE + 24.0f
+        + 16.0f  +  8.0f
+        + 16.0f  + 28.0f
+        + 21.0f
+        + 16.0f  + 22.0f
+        + 38.0f  + 16.0f
+        + 21.0f
+        + 44.0f;
 
     float cy = (winH - TOTAL_H) * 0.5f;
     if (cy < 20.0f) cy = 20.0f;
@@ -870,7 +841,6 @@ void App::renderHubBienvenida() {
         cy += statsz.y + 22.0f;
     }
 
-    
     {
         constexpr float BTN_W   = 190.0f;
         constexpr float BTN_H   = 38.0f;
@@ -914,7 +884,7 @@ void App::renderHubBienvenida() {
             ImGui::SetTooltip("Importar un archivo .md o .txt existente\n"
                               "al directorio de notas");
 
-        ImGui::PopStyleVar(); 
+        ImGui::PopStyleVar();
         cy += BTN_H + 16.0f;
     }
 
@@ -929,7 +899,6 @@ void App::renderHubBienvenida() {
         cy += 21.0f;
     }
 
-    
     {
         constexpr float BTN_W = 280.0f;
         constexpr float BTN_H = 44.0f;
@@ -957,7 +926,6 @@ void App::renderHubBienvenida() {
             ImGui::SetTooltip("Entrar al entorno de notas enlazadas");
     }
 
-    
     {
         ImVec2 mc = ImGui::GetMainViewport()->GetCenter();
         ImGui::SetNextWindowPos(mc, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
@@ -1009,4 +977,4 @@ void App::renderHubBienvenida() {
     ImGui::End();
 }
 
-} 
+}
