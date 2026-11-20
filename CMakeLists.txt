@@ -1,18 +1,14 @@
-cmake_minimum_required(VERSION 3.14)
-project(NodePanda LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.16)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+project(NodePanda LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Suprimir warnings de strncpy en MSVC
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
-# ==============================================================================
-# Dependencias externas via FetchContent
-# ==============================================================================
 include(FetchContent)
 
-# --- GLFW (windowing) ---
 FetchContent_Declare(
     glfw
     GIT_REPOSITORY https://github.com/glfw/glfw.git
@@ -23,7 +19,6 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(glfw)
 
-# --- Dear ImGui (UI con docking) ---
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
@@ -31,7 +26,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui)
 
-# Crear libreria de ImGui con backends GLFW + OpenGL3
 set(IMGUI_DIR ${imgui_SOURCE_DIR})
 add_library(imgui_lib STATIC
     ${IMGUI_DIR}/imgui.cpp
@@ -48,7 +42,6 @@ target_include_directories(imgui_lib PUBLIC
 )
 target_link_libraries(imgui_lib PUBLIC glfw)
 
-# --- Lua 5.4.6 (compilado directamente desde fuente oficial) ---
 FetchContent_Declare(
     lua_src
     URL      https://www.lua.org/ftp/lua-5.4.6.tar.gz
@@ -57,8 +50,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(lua_src)
 
-# Compilar nucleo de Lua como libreria estatica
-# (excluir lua.c y luac.c — son los ejecutables standalone, no el nucleo)
 file(GLOB LUA_SRC "${lua_src_SOURCE_DIR}/src/*.c")
 list(REMOVE_ITEM LUA_SRC "${lua_src_SOURCE_DIR}/src/lua.c")
 list(REMOVE_ITEM LUA_SRC "${lua_src_SOURCE_DIR}/src/luac.c")
@@ -68,12 +59,10 @@ target_include_directories(lua_lib PUBLIC "${lua_src_SOURCE_DIR}/src")
 if(WIN32)
     target_compile_definitions(lua_lib PRIVATE LUA_USE_WINDOWS)
 endif()
-# Suprimir warnings de MSVC en codigo C de Lua
 if(MSVC)
     target_compile_options(lua_lib PRIVATE /W0)
 endif()
 
-# --- sol2 v3.3.0 (bindings C++ <-> Lua, header-only) ---
 FetchContent_Declare(
     sol2
     GIT_REPOSITORY https://github.com/ThePhD/sol2.git
@@ -82,12 +71,9 @@ FetchContent_Declare(
 set(SOL2_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(sol2)
 
-# --- OpenGL ---
 find_package(OpenGL REQUIRED)
+find_package(Threads REQUIRED)
 
-# ==============================================================================
-# Proyecto NodePanda
-# ==============================================================================
 set(SOURCES
     src/main.cpp
     src/note.cpp
@@ -124,22 +110,46 @@ set(SOURCES
     src/git_panel.cpp
     src/http_server.cpp
     src/http_panel.cpp
+    src/crypto_engine.cpp
+    src/auth_manager.cpp
+    src/database_manager.cpp
+    src/database_panel.cpp
+    src/ui_theme.cpp
+    src/ui_components.cpp
+    src/outliner_engine.cpp
+    src/outliner_panel.cpp
+    src/task_engine.cpp
+    src/task_panel.cpp
+    src/journal_engine.cpp
+    src/journal_panel.cpp
+    src/whiteboard_engine.cpp
+    src/whiteboard_panel.cpp
+    src/datalog_engine.cpp
+    src/property_engine.cpp
+    src/asset_manager.cpp
+    src/asset_panel.cpp
+    src/backup_manager.cpp
+    src/sync_engine.cpp
+    src/sync_panel.cpp
+    src/command_palette.cpp
+    src/ai_catalog.cpp
+    src/ai_provider.cpp
+    src/context_brain.cpp
+    src/skill_manager.cpp
+    src/usage_ledger.cpp
+    src/data_lab.cpp
+    src/evolution_engine.cpp
+    src/agent_engine.cpp
+    src/agent_panel.cpp
+    src/lab_panel.cpp
+    src/cli_runner.cpp
 )
 
-# Icono y recursos de Windows
 if(WIN32)
     list(APPEND SOURCES resources/app.rc)
-    # WIN32 = subsistema Windows (sin ventana de consola negra al abrir el .exe)
-    add_executable(NodePanda WIN32 ${SOURCES})
-    # El proyecto usa int main() — indicar a MSVC que use mainCRTStartup como entry point
-    if(MSVC)
-        set_target_properties(NodePanda PROPERTIES
-            LINK_FLAGS "/ENTRY:mainCRTStartup"
-        )
-    endif()
-else()
-    add_executable(NodePanda ${SOURCES})
 endif()
+
+add_executable(NodePanda ${SOURCES})
 
 target_include_directories(NodePanda PRIVATE
     ${CMAKE_SOURCE_DIR}/include
@@ -149,31 +159,50 @@ target_include_directories(NodePanda PRIVATE
 target_link_libraries(NodePanda PRIVATE
     imgui_lib
     OpenGL::GL
+    Threads::Threads
     lua_lib
     sol2
 )
 
-# Vincular comdlg32 para el diálogo nativo de archivos (GetOpenFileNameA)
 if(WIN32)
-    target_link_libraries(NodePanda PRIVATE comdlg32 psapi ws2_32)
+    target_link_libraries(NodePanda PRIVATE comdlg32 psapi ws2_32 winhttp)
 endif()
 
-# Copiar la carpeta de datos al directorio de salida
 add_custom_command(TARGET NodePanda POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:NodePanda>/data/notas"
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:NodePanda>/data/plugins"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_SOURCE_DIR}/data/panda.png"
-        "$<TARGET_FILE_DIR:NodePanda>/data/panda.png"
-    COMMENT "Copiando assets de datos al directorio de salida"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:NodePanda>/data/skills"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:NodePanda>/data/sql"
 )
 
-# Copiar plugins de ejemplo al directorio de salida
+if(EXISTS "${CMAKE_SOURCE_DIR}/data/panda.png")
+    add_custom_command(TARGET NodePanda POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/data/panda.png"
+            "$<TARGET_FILE_DIR:NodePanda>/data/panda.png"
+    )
+endif()
+
 if(EXISTS "${CMAKE_SOURCE_DIR}/data/plugins")
     add_custom_command(TARGET NodePanda POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_SOURCE_DIR}/data/plugins"
             "$<TARGET_FILE_DIR:NodePanda>/data/plugins"
-        COMMENT "Copiando plugins al directorio de salida"
+    )
+endif()
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/data/skills")
+    add_custom_command(TARGET NodePanda POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/data/skills"
+            "$<TARGET_FILE_DIR:NodePanda>/data/skills"
+    )
+endif()
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/data/sql")
+    add_custom_command(TARGET NodePanda POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/data/sql"
+            "$<TARGET_FILE_DIR:NodePanda>/data/sql"
     )
 endif()
