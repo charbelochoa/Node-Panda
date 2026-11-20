@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <string>
 
 namespace nodepanda {
@@ -18,4 +17,4 @@ private:
     bool m_focusInput     = false;
 };
 
-} 
+}
