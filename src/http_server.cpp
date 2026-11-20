@@ -23,7 +23,6 @@
 
 namespace nodepanda {
 
-// Helpers to convert between uintptr_t (header) and SOCKET (platform)
 static inline SOCKET toSock(uintptr_t s) { return (SOCKET)s; }
 static inline uintptr_t fromSock(SOCKET s) { return (uintptr_t)s; }
 static const uintptr_t kInvalidSock = (uintptr_t)INVALID_SOCKET;
@@ -85,7 +84,7 @@ void HttpServer::serverLoop() {
 
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1"); // Solo localhost
+    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
     serverAddr.sin_port = htons((u_short)m_port);
 
     if (::bind(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) != 0) {
@@ -127,7 +126,6 @@ void HttpServer::serverLoop() {
         if (clientSocket == INVALID_SOCKET) continue;
 #endif
 
-        // Read HTTP request
         char buffer[4096] = {0};
         int bytesRead = ::recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
 
@@ -135,7 +133,6 @@ void HttpServer::serverLoop() {
             buffer[bytesRead] = '\0';
             std::string request(buffer);
 
-            // Parse request line
             size_t firstSpace = request.find(' ');
             size_t secondSpace = request.find(' ', firstSpace + 1);
             if (firstSpace != std::string::npos && secondSpace != std::string::npos) {
@@ -170,7 +167,6 @@ std::string HttpServer::handleRequest(const std::string& method, const std::stri
         return httpResponse(405, "{\"error\": \"Method not allowed\"}");
     }
 
-    // Extract path without query string
     size_t queryPos = path.find('?');
     std::string pathOnly = (queryPos != std::string::npos) ? path.substr(0, queryPos) : path;
 
@@ -432,4 +428,4 @@ std::string HttpServer::extractParam(const std::string& path, const std::string&
     return urlDecode(value);
 }
 
-} // namespace nodepanda
+}
