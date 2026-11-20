@@ -1,6 +1,6 @@
 # Guía para Contribuidores (Contributors)
 
-Gracias por tu interés en contribuir a **Node Panda**. Este proyecto está desarrollado íntegramente en **C++17 puro** con renderizado nativo OpenGL, interfaz interactiva sobre Dear ImGui, motor de bloques Outliner, consultas Datalog, coordinación de agentes de IA (locales y por API), interfaz de línea de comandos (CLI) con autenticación en terminal y soporte de bases de datos MySQL y PostgreSQL.
+Gracias por tu interés en contribuir a **Node Panda**. Este proyecto está desarrollado íntegramente en **C++17 puro** con renderizado nativo OpenGL, interfaz interactiva sobre Dear ImGui, motor de bloques Outliner, consultas Datalog, coordinación de agentes de IA (locales y por API), anotador PDF nativo, colaboración WebSocket RTC (RFC 6455), vistas de tabla sobre notas, búsqueda vectorial híbrida 384D, renderizado matemático LaTeX, Companion Móvil PWA, interfaz de línea de comandos (CLI) con autenticación en terminal y soporte de bases de datos MySQL y PostgreSQL.
 
 ---
 
@@ -64,6 +64,17 @@ Node-Panda/
 │   ├── agent_panel.h
 │   ├── lab_panel.h
 │   ├── cli_runner.h
+│   ├── pdf_engine.h
+│   ├── pdf_panel.h
+│   ├── websocket_rtc.h
+│   ├── rtc_panel.h
+│   ├── table_view_engine.h
+│   ├── table_view_panel.h
+│   ├── vector_engine.h
+│   ├── vector_panel.h
+│   ├── math_renderer.h
+│   ├── math_panel.h
+│   ├── mobile_bridge.h
 │   └── ...
 ├── src/
 │   └── (implementaciones C++ correspondientes)
@@ -117,6 +128,11 @@ También es compatible con Visual Studio (`cmake .. -G "Visual Studio 17 2022"`)
    .\NodePanda.exe query --name task-search
    .\NodePanda.exe db status
    .\NodePanda.exe db init --engine postgres
+   .\NodePanda.exe vector "arquitectura de grafos" --k 5
+   .\NodePanda.exe rtc status
+   .\NodePanda.exe pdf demo
+   .\NodePanda.exe table list
+   .\NodePanda.exe mobile
    ```
 
 4. **Despliegue con Docker**:
