@@ -1,66 +1,62 @@
 #include "memory_panel.h"
 #include "app.h"
 #include "memory_engine.h"
+#include "ui_theme.h"
+#include "ui_components.h"
 #include "imgui.h"
 
 #include <cstring>
+#include <cstdio>
 #include <algorithm>
+#include <string>
 
 namespace nodepanda {
 
-static void renderScoreBar(float score) {
+namespace {
 
-    ImVec2 pos = ImGui::GetCursorScreenPos();
-    float barW = 60.0f * score;
-    float barH = 4.0f;
-    ImU32 col;
-    if (score > 0.6f)
-        col = IM_COL32(72, 224, 210, 255);
-    else if (score > 0.3f)
-        col = IM_COL32(200, 200, 80, 255);
-    else
-        col = IM_COL32(100, 110, 140, 200);
-
-    ImGui::GetWindowDrawList()->AddRectFilled(
-        pos, ImVec2(pos.x + barW, pos.y + barH), col, 2.0f);
-
-    ImGui::GetWindowDrawList()->AddRectFilled(
-        ImVec2(pos.x + barW, pos.y),
-        ImVec2(pos.x + 60.0f, pos.y + barH),
-        IM_COL32(40, 42, 55, 150), 2.0f);
-    ImGui::Dummy(ImVec2(60.0f, barH + 2.0f));
+ImVec4 scoreAccentColor(float score, const ThemePalette& pal) {
+    if (score > 0.6f) return pal.aqua;
+    if (score > 0.3f) return pal.warning;
+    return pal.textMuted;
 }
 
-static bool renderResult(const MemoryResult& r, int idx) {
+bool renderResultRow(const MemoryResult& r, int idx, const ThemePalette& pal) {
     ImGui::PushID(idx);
     bool clicked = false;
 
     char scoreBuf[16];
     std::snprintf(scoreBuf, sizeof(scoreBuf), "%.0f%%", r.score * 100.0f);
+    ImVec4 barCol = scoreAccentColor(r.score, pal);
 
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.28f, 0.80f, 0.55f, 1.0f));
-    if (ImGui::Selectable(("  " + r.title).c_str(), false)) {
+    ImGui::PushStyleColor(ImGuiCol_Text, pal.textPrimary);
+    float selW = std::max(80.0f, ImGui::GetContentRegionAvail().x - 62.0f);
+    if (ImGui::Selectable(r.title.c_str(), false, 0, ImVec2(selW, 0.0f))) {
         clicked = true;
     }
     ImGui::PopStyleColor();
 
     if (ImGui::IsItemHovered()) {
         ImGui::BeginTooltip();
-        ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f), "%s", r.title.c_str());
-        ImGui::TextColored(ImVec4(0.55f, 0.56f, 0.66f, 1.0f),
-                           "Similitud: %s  |  ID: %s", scoreBuf, r.noteId.c_str());
+        ImGui::TextColored(pal.accent, "%s", r.title.c_str());
+        ImGui::TextColored(pal.textMuted, "Similitud: %s  |  ID: %s", scoreBuf, r.noteId.c_str());
         ImGui::EndTooltip();
     }
 
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 64.0f);
-    ImGui::TextColored(ImVec4(0.45f, 0.47f, 0.58f, 1.0f), "%s", scoreBuf);
+    ImGui::SameLine();
+    ui::badge(scoreBuf, ImVec4(barCol.x, barCol.y, barCol.z, 0.18f), barCol);
+    ui::progressBarModern(r.score, barCol, ImGui::GetContentRegionAvail().x, 5.0f);
+    ImGui::Spacing();
 
     ImGui::PopID();
     return clicked;
 }
 
+}
+
 void MemoryPanel::render(App& app) {
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 8.0f));
+    const ThemePalette& pal = UITheme::palette();
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f, 10.0f));
     ImGui::Begin("Motor de Memoria", nullptr, ImGuiWindowFlags_NoCollapse);
     ImGui::PopStyleVar();
 
@@ -70,48 +66,49 @@ void MemoryPanel::render(App& app) {
         memory.reindex(app.getNoteManager());
     }
 
-    ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f), "Motor de Memoria");
-    ImGui::SameLine();
-    ImGui::TextColored(ImVec4(0.35f, 0.37f, 0.48f, 1.0f),
-                       "  %d notas  |  %d terminos",
-                       memory.indexedNotes(), memory.vocabularySize());
+    float availW = ImGui::GetContentRegionAvail().x;
+    float cardW = std::max(100.0f, (availW - 8.0f) * 0.5f);
+    ui::metricCard("##mem_notes", "Notas indexadas", std::to_string(memory.indexedNotes()), pal.accent, cardW);
+    ImGui::SameLine(0.0f, 8.0f);
+    ui::metricCard("##mem_vocab", "Vocabulario TF-IDF", std::to_string(memory.vocabularySize()), pal.aqua, cardW);
 
     ImGui::Spacing();
-    ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
+    if (ui::subtleButton("Re-indexar Memoria", ImVec2(-1.0f, 0.0f))) {
+        memory.reindex(app.getNoteManager());
+        ui::pushToast("Indice TF-IDF actualizado", "success");
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Reconstruir el indice TF-IDF manualmente");
+
+    ImGui::Spacing();
     ImGui::Separator();
-    ImGui::PopStyleColor();
     ImGui::Spacing();
 
-    ImGui::TextColored(ImVec4(0.75f, 0.78f, 0.45f, 1.0f), "Busqueda Semantica");
-    ImGui::Spacing();
+    ui::sectionHeader("Busqueda Semantica");
 
-    ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - 80.0f);
+    ImGui::SetNextItemWidth(std::max(100.0f, ImGui::GetContentRegionAvail().x - 86.0f));
     bool enterPressed = ImGui::InputTextWithHint("##memsearch", "Buscar por contenido...",
-                                                  m_searchBuffer, SEARCH_SIZE,
-                                                  ImGuiInputTextFlags_EnterReturnsTrue);
-    ImGui::PopItemWidth();
-    ImGui::SameLine();
-
-    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.12f, 0.45f, 0.40f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  ImVec4(0.18f, 0.58f, 0.52f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,   ImVec4(0.08f, 0.35f, 0.30f, 1.0f));
-    bool searchClicked = ImGui::Button("Buscar");
-    ImGui::PopStyleColor(3);
+                                                 m_searchBuffer, SEARCH_SIZE,
+                                                 ImGuiInputTextFlags_EnterReturnsTrue);
+    ImGui::SameLine(0.0f, 6.0f);
+    bool searchClicked = ui::primaryButton("Buscar", ImVec2(78.0f, 0.0f));
 
     if (enterPressed || searchClicked) {
         m_searchTriggered = true;
     }
 
     if (m_searchTriggered && std::strlen(m_searchBuffer) > 0) {
+        ImGui::Spacing();
         auto results = memory.search(m_searchBuffer, 10);
         if (results.empty()) {
-            ImGui::TextColored(ImVec4(0.40f, 0.42f, 0.52f, 1.0f),
-                               "Sin resultados para \"%s\"", m_searchBuffer);
+            ImGui::TextColored(pal.textMuted, "Sin resultados para \"%s\"", m_searchBuffer);
         } else {
-            ImGui::TextColored(ImVec4(0.50f, 0.52f, 0.62f, 1.0f),
-                               "%d resultado(s):", (int)results.size());
-            for (int i = 0; i < (int)results.size(); ++i) {
-                if (renderResult(results[i], 1000 + i)) {
+            char countBuf[48];
+            std::snprintf(countBuf, sizeof(countBuf), "%d resultado(s)", static_cast<int>(results.size()));
+            ui::badge(countBuf, pal.accentSoft, pal.accent);
+            ImGui::Spacing();
+            for (int i = 0; i < static_cast<int>(results.size()); ++i) {
+                if (renderResultRow(results[i], 1000 + i, pal)) {
                     app.selectedNoteId = results[i].noteId;
                 }
             }
@@ -119,101 +116,78 @@ void MemoryPanel::render(App& app) {
     }
 
     ImGui::Spacing();
-    ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
     ImGui::Separator();
-    ImGui::PopStyleColor();
     ImGui::Spacing();
 
     if (app.selectedNoteId.empty()) {
-        ImGui::TextColored(ImVec4(0.35f, 0.36f, 0.46f, 1.0f),
-                           "Selecciona una nota para ver relaciones");
+        ImGui::TextColored(pal.textMuted, "Selecciona una nota para ver relaciones");
         ImGui::End();
         return;
     }
 
-    ImGui::TextColored(ImVec4(0.75f, 0.78f, 0.45f, 1.0f), "Notas Relacionadas");
-    ImGui::Spacing();
+    ui::sectionHeader("Notas Relacionadas");
 
     auto similar = memory.findSimilar(app.selectedNoteId, 8);
     if (similar.empty()) {
-        ImGui::TextColored(ImVec4(0.40f, 0.42f, 0.52f, 1.0f),
-                           "No se encontraron notas similares");
+        ImGui::TextColored(pal.textMuted, "No se encontraron notas similares");
     } else {
-        for (int i = 0; i < (int)similar.size(); ++i) {
-            if (renderResult(similar[i], 2000 + i)) {
+        for (int i = 0; i < static_cast<int>(similar.size()); ++i) {
+            if (renderResultRow(similar[i], 2000 + i, pal)) {
                 app.selectedNoteId = similar[i].noteId;
             }
         }
     }
 
     ImGui::Spacing();
-    ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
     ImGui::Separator();
-    ImGui::PopStyleColor();
     ImGui::Spacing();
 
-    ImGui::TextColored(ImVec4(0.75f, 0.78f, 0.45f, 1.0f), "Sugerencias de Enlace");
-    ImGui::SameLine();
-    ImGui::TextColored(ImVec4(0.40f, 0.42f, 0.52f, 1.0f), "(no enlazadas aun)");
-    ImGui::Spacing();
+    ui::sectionHeader("Sugerencias de Enlace");
 
     Note* currentNote = app.getNoteManager().getNoteById(app.selectedNoteId);
     if (currentNote) {
-        auto suggestions = memory.suggestLinks(
-            app.selectedNoteId, currentNote->links, 5);
+        auto suggestions = memory.suggestLinks(app.selectedNoteId, currentNote->links, 5);
 
         if (suggestions.empty()) {
-            ImGui::TextColored(ImVec4(0.40f, 0.42f, 0.52f, 1.0f),
-                               "Sin sugerencias adicionales");
+            ImGui::TextColored(pal.textMuted, "Sin sugerencias adicionales");
         } else {
-            for (int i = 0; i < (int)suggestions.size(); ++i) {
+            for (int i = 0; i < static_cast<int>(suggestions.size()); ++i) {
                 ImGui::PushID(3000 + i);
                 const auto& s = suggestions[i];
+                ImVec4 barCol = scoreAccentColor(s.score, pal);
 
-                ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.15f, 0.25f, 0.40f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  ImVec4(0.20f, 0.35f, 0.55f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive,   ImVec4(0.12f, 0.20f, 0.32f, 1.0f));
-                char linkBtn[32];
-                std::snprintf(linkBtn, sizeof(linkBtn), " + ");
-                if (ImGui::SmallButton(linkBtn)) {
+                if (ui::beginCard("##sug_card", ImVec2(0, 0), false)) {
+                    char scoreBuf[16];
+                    std::snprintf(scoreBuf, sizeof(scoreBuf), "%.0f%%", s.score * 100.0f);
 
-                    if (currentNote) {
+                    float titleW = std::max(80.0f, ImGui::GetContentRegionAvail().x - 130.0f);
+                    if (ImGui::Selectable(s.title.c_str(), false, 0, ImVec2(titleW, 0.0f))) {
+                        app.selectedNoteId = s.noteId;
+                    }
+                    ImGui::SameLine();
+                    ui::badge(scoreBuf, ImVec4(barCol.x, barCol.y, barCol.z, 0.18f), barCol);
+                    ImGui::SameLine(0.0f, 6.0f);
+                    if (ui::subtleButton("+ Enlazar")) {
                         currentNote->content += "\n[[" + s.noteId + "]]";
                         currentNote->dirty = true;
+                        currentNote->saveToFile();
                         currentNote->parseLinks();
                         app.graphNeedsRebuild = true;
+                        app.rebuildKnowledgeIndices();
                         memory.markDirty();
+                        ui::pushToast("Enlace insertado", "success");
                     }
-                }
-                ImGui::PopStyleColor(3);
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("Insertar [[%s]] al final de la nota", s.noteId.c_str());
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("Insertar [[%s]] al final de la nota", s.noteId.c_str());
 
-                ImGui::SameLine();
-                if (renderResult(s, 3000 + i)) {
-                    app.selectedNoteId = s.noteId;
+                    ui::progressBarModern(s.score, barCol, ImGui::GetContentRegionAvail().x, 5.0f);
                 }
-
+                ui::endCard();
+                ImGui::Spacing();
                 ImGui::PopID();
             }
         }
     }
-
-    ImGui::Spacing();
-    ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
-    ImGui::Separator();
-    ImGui::PopStyleColor();
-    ImGui::Spacing();
-
-    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.18f, 0.20f, 0.30f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  ImVec4(0.25f, 0.28f, 0.40f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,   ImVec4(0.14f, 0.16f, 0.24f, 1.0f));
-    if (ImGui::Button("  Re-indexar Memoria  ")) {
-        memory.reindex(app.getNoteManager());
-    }
-    ImGui::PopStyleColor(3);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Reconstruir el indice TF-IDF manualmente");
 
     ImGui::End();
 }
