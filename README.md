@@ -125,7 +125,18 @@ Variables de entorno soportadas:
 | `NODEPANDA_DB_NAME` | `nodepanda` | Nombre de la base de datos |
 | `NODEPANDA_DB_USER` | `nodepanda` | Usuario SQL |
 | `NODEPANDA_DB_PASSWORD` | _(vacío)_ | Contraseña SQL |
+| `NODEPANDA_API_TOKEN` | _(opcional)_ | Token Bearer para proteger rutas `/api/*` en despliegues remotos |
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`, `DEEPSEEK_API_KEY`, `NVIDIA_API_KEY` | _(opcional)_ | Claves de API para proveedores de agentes IA |
+
+### Pruebas Automatizadas (CTest)
+
+El proyecto incluye una suite de pruebas nativas en C++17 (`tests/nodepanda_tests.cpp`) que valida criptografía, autenticación, outliner, tareas, Datalog, búsqueda vectorial 384D, PDF, vistas de tabla, AST LaTeX, WebSocket RFC 6455 y Companion Móvil PWA:
+
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DNODEPANDA_BUILD_TESTS=ON
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
 
 ---
 
@@ -201,6 +212,7 @@ Node Panda está diseñado bajo principios **local-first** y **defensa en profun
 
 4. **Protección de Red, Archivos y Base de Datos**:
    - Por defecto, el modo `--gui` enlaza el servidor HTTP y WebSocket a `127.0.0.1` (solo loopback local). La exposición en red (`0.0.0.0`) solo se activa explícitamente en modo `--server` o mediante `NODEPANDA_HOST`.
+   - El servidor HTTP aplica lectura completa por `Content-Length` con tope estricto de `1 MiB` (`413 Payload Too Large`), cabeceras defensivas (`X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer`) y soporte opcional de autenticación Bearer mediante `NODEPANDA_API_TOKEN` validado en tiempo constante.
    - En despliegues públicos o en LAN compartida se recomienda colocar un proxy inverso con TLS (`nginx`, `Caddy` o `Traefik`) terminando `https://` y `wss://`, y nunca almacenar secretos de producción en el repositorio.
    - Las operaciones sobre rutas de archivos validan nombres y directorios de bóveda/assets para evitar ataques de *path traversal*, y las consultas generadas hacia PostgreSQL y MySQL escapan literales SQL y ejecutan esquemas parametrizados (`data/sql/postgres_schema.sql` y `data/sql/mysql_schema.sql`).
    - Las claves de API de proveedores de IA se leen preferentemente desde variables de entorno y los costos se acotan con límites de presupuesto por misión (`UsageLedger`).
@@ -211,12 +223,15 @@ Node Panda está diseñado bajo principios **local-first** y **defensa en profun
 
 ```text
 Node-Panda/
+├── .github/workflows/     # Pipeline CI (compilación Linux C++17 + CTest)
 ├── include/               # Cabeceras C++17 de motores, paneles, red, seguridad e IA
 ├── src/                   # Implementación en C++17 puro
+├── tests/                 # Suite de pruebas unitarias C++17 (CTest)
 ├── data/
 │   ├── plugins/           # 12 plugins Lua 5.4 integrados
 │   ├── skills/            # Skills Markdown para agentes IA
-│   └── sql/               # Esquemas PostgreSQL y MySQL
+│   ├── sql/               # Esquemas PostgreSQL y MySQL
+│   └── panda.png          # Logotipo usado en el Hub de Bienvenida
 ├── docs/
 │   └── screenshots/       # Capturas reales de la aplicación
 ├── resources/             # Icono y manifiesto de recursos de escritorio
