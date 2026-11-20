@@ -1,4 +1,3 @@
-
 #define SOL_ALL_SAFETIES_ON 1
 #include "plugin_manager.h"
 #include "app.h"
@@ -17,10 +16,6 @@
 
 namespace nodepanda {
 
-// ═════════════════════════════════════════════════════════════════════════════
-//  Minimal JSON parser (solo lo necesario para manifest.json)
-//  Evita dependencias externas — solo parsea objetos planos y arrays de strings
-// ═════════════════════════════════════════════════════════════════════════════
 namespace json_mini {
 
 static std::string trim(const std::string& s) {
@@ -77,12 +72,7 @@ static std::vector<std::string> extractStringArray(const std::string& json,
     return result;
 }
 
-} // namespace json_mini
-
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  Helpers
-// ═════════════════════════════════════════════════════════════════════════════
+}
 
 static std::string currentDate() {
     auto now = std::chrono::system_clock::now();
@@ -99,21 +89,11 @@ static std::string currentDate() {
     return std::string(date);
 }
 
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  Constructor / Destructor
-// ═════════════════════════════════════════════════════════════════════════════
-
 PluginManager::PluginManager() = default;
 
 PluginManager::~PluginManager() {
     shutdown();
 }
-
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  init / shutdown
-// ═════════════════════════════════════════════════════════════════════════════
 
 void PluginManager::init(App* app) {
     m_app = app;
@@ -129,7 +109,7 @@ void PluginManager::init(App* app) {
 }
 
 void PluginManager::shutdown() {
-    // Llamar on_unload en cada plugin cargado
+
     for (auto& plugin : m_plugins) {
         if (plugin.loaded && plugin.manifest.enabled) {
             callHook(plugin, "on_unload");
@@ -141,11 +121,6 @@ void PluginManager::shutdown() {
     m_panels.clear();
     m_notifications.clear();
 }
-
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  Discovery — escanear data/plugins/ buscando manifest.json
-// ═════════════════════════════════════════════════════════════════════════════
 
 void PluginManager::discoverPlugins() {
     m_plugins.clear();
@@ -172,7 +147,6 @@ void PluginManager::discoverPlugins() {
         instance.manifest  = manifest;
         instance.directory = entry.path();
 
-        // Inicializar Lua y cargar el script si está habilitado
         if (manifest.enabled) {
             initPluginLua(instance);
             loadPluginScript(instance);
@@ -210,11 +184,6 @@ bool PluginManager::parseManifest(const std::filesystem::path& manifestPath,
     return true;
 }
 
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  Lua initialization per plugin
-// ═════════════════════════════════════════════════════════════════════════════
-
 void PluginManager::initPluginLua(PluginInstance& plugin) {
     if (plugin.luaState) {
         lua_close(plugin.luaState);
@@ -223,14 +192,12 @@ void PluginManager::initPluginLua(PluginInstance& plugin) {
 
     plugin.luaState = luaL_newstate();
 
-    // Abrir librerías seguras
     luaL_requiref(plugin.luaState, "base",   luaopen_base,   1); lua_pop(plugin.luaState, 1);
     luaL_requiref(plugin.luaState, "string", luaopen_string,  1); lua_pop(plugin.luaState, 1);
     luaL_requiref(plugin.luaState, "table",  luaopen_table,   1); lua_pop(plugin.luaState, 1);
     luaL_requiref(plugin.luaState, "math",   luaopen_math,    1); lua_pop(plugin.luaState, 1);
     luaL_requiref(plugin.luaState, "utf8",   luaopen_utf8,    1); lua_pop(plugin.luaState, 1);
 
-    // Sandbox: deshabilitar funciones peligrosas
     const char* sandbox = R"(
         dofile     = nil
         loadfile   = nil
@@ -246,16 +213,13 @@ void PluginManager::initPluginLua(PluginInstance& plugin) {
     )";
     luaL_dostring(plugin.luaState, sandbox);
 
-    // Registrar bindings específicos para plugins
     registerPluginBindings(plugin);
 }
-
 
 void PluginManager::registerPluginBindings(PluginInstance& plugin) {
     sol::state_view lua(plugin.luaState);
     const std::string pluginId = plugin.manifest.id;
 
-    // ── print → captura hacia log de la consola Lua ──────────────────────
     lua.set_function("print", [this](sol::variadic_args va) {
         std::ostringstream oss;
         bool first = true;
@@ -273,7 +237,6 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
         m_app->getLuaManager().logInfo("[plugin] " + oss.str());
     });
 
-    // ── API: notas ───────────────────────────────────────────────────────
     sol::table notas = lua.create_named_table("notas");
 
     notas.set_function("contar", [this]() -> int {
@@ -316,7 +279,6 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
         return m_app->selectedNoteId;
     });
 
-    // ── NUEVAS: notas.crear, notas.editar, notas.existe, notas.abrir, notas.establecer_meta ─
     notas.set_function("existe", [this](const std::string& id) -> bool {
         return m_app->getNoteManager().getNoteById(id) != nullptr;
     });
@@ -362,7 +324,6 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
         return true;
     });
 
-    // ── API: grafo ───────────────────────────────────────────────────────
     sol::table grafo = lua.create_named_table("grafo");
 
     grafo.set_function("nodos", [this]() -> int {
@@ -395,10 +356,8 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
         return m_app->getGraph().getNodes()[idx].connectionCount;
     });
 
-    // ── API: memoria (TF-IDF) ────────────────────────────────────────────
     sol::table mem = lua.create_named_table("memoria");
 
-    // Capturar el lua_State del plugin actual para crear tablas en el estado correcto
     lua_State* pluginLua = plugin.luaState;
 
     mem.set_function("similares", [this, pluginLua](const std::string& noteId, int topN) -> sol::table {
@@ -431,7 +390,6 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
         return t;
     });
 
-    // ── API: app ─────────────────────────────────────────────────────────
     sol::table appT = lua.create_named_table("app");
 
     appT.set_function("fecha_hoy", []() -> std::string {
@@ -446,18 +404,17 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
         return m_app->getPerformanceMetrics().memoryMB();
     });
 
-    // Persistencia simple: guardar/leer valores en un JSON local
     appT.set_function("persistir", [this, pluginId](const std::string& key,
                                                       const std::string& value) {
         auto path = m_pluginsDir / pluginId / "state.json";
-        // Leer estado actual
+
         std::unordered_map<std::string, std::string> state;
         {
             std::ifstream f(path);
             if (f.is_open()) {
                 std::string json((std::istreambuf_iterator<char>(f)),
                                   std::istreambuf_iterator<char>());
-                // Parsear pares key:value simplificados
+
                 size_t pos = 0;
                 while (pos < json.size()) {
                     size_t q1 = json.find('"', pos);
@@ -476,7 +433,7 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
             }
         }
         state[key] = value;
-        // Escribir
+
         std::ofstream out(path);
         if (out.is_open()) {
             out << "{\n";
@@ -499,14 +456,13 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
         return json_mini::extractString(json, key);
     });
 
-    // ── API: ui (registro de menús, paneles, notificaciones) ─────────────
     sol::table ui = lua.create_named_table("ui");
 
     ui.set_function("menu_item", [this, pluginId](const std::string& label,
                                                     sol::function callback,
                                                     sol::this_state ts) {
         lua_State* L = ts;
-        // Guardar referencia al callback
+
         callback.push();
         int ref = luaL_ref(L, LUA_REGISTRYINDEX);
         registerMenuItem(pluginId, label, ref, L);
@@ -526,7 +482,6 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
         addNotification(text, type.has_value() ? type.value() : "info");
     });
 
-    // ── API: imgui (bindings para renderizar UI desde Lua) ───────────────
     sol::table ig = lua.create_named_table("imgui");
 
     ig.set_function("texto", [](const std::string& text) {
@@ -668,7 +623,6 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
         return ImGui::GetContentRegionAvail().y;
     });
 
-    // ── API: app.guardar_archivo (para exportar archivos) ────────────────
     appT.set_function("guardar_archivo", [this](const std::string& filename,
                                                   const std::string& content) -> bool {
         auto path = std::filesystem::current_path() / "data" / filename;
@@ -678,7 +632,6 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
         return true;
     });
 
-    // ── API: ui.tema (cambiar colores de ImGui) ──────────────────────────
     ui.set_function("tema", [](sol::table colors) {
         ImGuiStyle& s = ImGui::GetStyle();
         ImVec4* c = s.Colors;
@@ -726,7 +679,6 @@ void PluginManager::registerPluginBindings(PluginInstance& plugin) {
     });
 }
 
-
 void PluginManager::loadPluginScript(PluginInstance& plugin) {
     if (!plugin.luaState) return;
 
@@ -747,15 +699,9 @@ void PluginManager::loadPluginScript(PluginInstance& plugin) {
     }
 }
 
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  Hook dispatch
-// ═════════════════════════════════════════════════════════════════════════════
-
 void PluginManager::callHook(PluginInstance& plugin, const std::string& hookName) {
     if (!plugin.luaState || !plugin.loaded || !plugin.manifest.enabled) return;
 
-    // Verificar que el plugin declara este hook
     auto& hooks = plugin.manifest.hooks;
     if (std::find(hooks.begin(), hooks.end(), hookName) == hooks.end()) return;
 
@@ -771,7 +717,6 @@ void PluginManager::callHook(PluginInstance& plugin, const std::string& hookName
         fprintf(stderr, "[PluginManager] Error en %s.%s: %s\n",
                 plugin.manifest.id.c_str(), hookName.c_str(), err.what());
 
-        // Auto-desactivar plugins con errores repetidos en on_frame
         if (hookName == "on_frame") {
             plugin.consecutiveErrors++;
             if (plugin.consecutiveErrors >= PluginInstance::kMaxFrameErrors) {
@@ -783,7 +728,7 @@ void PluginManager::callHook(PluginInstance& plugin, const std::string& hookName
             }
         }
     } else {
-        // Resetear contador de errores si el hook tuvo éxito
+
         if (hookName == "on_frame") {
             plugin.consecutiveErrors = 0;
         }
@@ -810,7 +755,6 @@ void PluginManager::callHookWithArg(PluginInstance& plugin, const std::string& h
                 plugin.manifest.id.c_str(), hookName.c_str(), arg.c_str(), err.what());
     }
 }
-
 
 void PluginManager::callOnLoad() {
     for (auto& plugin : m_plugins) {
@@ -842,11 +786,6 @@ void PluginManager::callOnNoteCreate(const std::string& noteId) {
     }
 }
 
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  Enable / Disable / Reload
-// ═════════════════════════════════════════════════════════════════════════════
-
 void PluginManager::enablePlugin(const std::string& pluginId) {
     for (auto& plugin : m_plugins) {
         if (plugin.manifest.id == pluginId) {
@@ -867,7 +806,7 @@ void PluginManager::disablePlugin(const std::string& pluginId) {
         if (plugin.manifest.id == pluginId) {
             callHook(plugin, "on_unload");
             plugin.manifest.enabled = false;
-            // Limpiar menú items y paneles de este plugin
+
             m_menuItems.erase(
                 std::remove_if(m_menuItems.begin(), m_menuItems.end(),
                     [&](const PluginMenuItem& mi) { return mi.pluginId == pluginId; }),
@@ -893,11 +832,6 @@ void PluginManager::rescanPlugins() {
     discoverPlugins();
     callOnLoad();
 }
-
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  Plugin registration API
-// ═════════════════════════════════════════════════════════════════════════════
 
 void PluginManager::registerMenuItem(const std::string& pluginId, const std::string& label,
                                       int callbackRef, lua_State* L) {
@@ -926,11 +860,6 @@ void PluginManager::addNotification(const std::string& text, const std::string& 
     notif.timer = 4.0f;
     m_notifications.push_back(std::move(notif));
 }
-
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  Destroy / Persistence
-// ═════════════════════════════════════════════════════════════════════════════
 
 void PluginManager::destroyPlugin(PluginInstance& plugin) {
     if (plugin.luaState) {
@@ -965,11 +894,6 @@ void PluginManager::loadPluginStates() {
     ss << file.rdbuf();
     std::string json = ss.str();
 
-    // Aplicar estados guardados al descubrir plugins
-    // Se aplican en discoverPlugins después de parsear manifests
-    // Guardar en un mapa temporal que se consulta al cargar
-    // (simplificación: parseamos aquí los estados)
-    // Los estados se aplicarán en discoverPlugins
 }
 
-} // namespace nodepanda
+}
