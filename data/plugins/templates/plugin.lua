@@ -1,10 +1,3 @@
--- ═══════════════════════════════════════════════════════════════════════════
---  Plugin: Plantillas (Templates)
---  Registra menu items para crear notas desde plantillas predefinidas.
---  Tambien permite aplicar una plantilla a la nota recien creada.
--- ═══════════════════════════════════════════════════════════════════════════
-
--- ── Definicion de plantillas ─────────────────────────────────────────────
 local templates = {}
 
 templates["Reunion"] = {
@@ -39,9 +32,7 @@ templates["Proyecto"] = {
 
 ## Objetivo
 
-
 ## Contexto y motivacion
-
 
 ## Alcance
 - Incluye:
@@ -67,9 +58,7 @@ templates["Concepto"] = {
 
 ## Definicion
 
-
 ## Contexto
-
 
 ## Puntos clave
 -
@@ -77,7 +66,6 @@ templates["Concepto"] = {
 -
 
 ## Ejemplos
-
 
 ## Relacion con otros conceptos
 - [[]]
@@ -93,7 +81,6 @@ templates["Tarea"] = {
 # Tarea: %TITULO%
 
 ## Descripcion
-
 
 ## Criterios de completado
 - [ ]
@@ -116,7 +103,6 @@ templates["Diario Detallado"] = {
 
 ## Lo mas importante de hoy
 
-
 ## Logros
 -
 
@@ -124,7 +110,6 @@ templates["Diario Detallado"] = {
 -
 
 ## Ideas y reflexiones
-
 
 ## Gratitud
 -
@@ -135,7 +120,6 @@ templates["Diario Detallado"] = {
 ]]
 }
 
--- ── Funcion para aplicar plantilla ───────────────────────────────────────
 local function aplicar_plantilla(nombre_template, nota_id)
     local tmpl = templates[nombre_template]
     if not tmpl then
@@ -164,7 +148,6 @@ local function aplicar_plantilla(nombre_template, nota_id)
     return ok
 end
 
--- ── on_load: registrar menu items ────────────────────────────────────────
 function on_load()
     print("[Templates] Plugin cargado con " .. 5 .. " plantillas")
 
@@ -180,8 +163,6 @@ function on_load()
     end
 end
 
--- ── on_note_create: ofrecer seleccion de plantilla via notificacion ──────
--- (No forzamos plantilla, solo notificamos que hay plantillas disponibles)
 function on_note_create(nota_id)
     print("[Templates] Nota creada: " .. nota_id .. " — usa menu Plugins para aplicar plantilla")
 end
