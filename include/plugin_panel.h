@@ -12,4 +12,4 @@ private:
     char m_searchBuf[128] = {};
 };
 
-} // namespace nodepanda
+}
