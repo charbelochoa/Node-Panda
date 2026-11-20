@@ -1,7 +1,3 @@
-// ============================================================================
-// GraphPanel — Visualización del grafo de nodos (modos 2D y 3D)
-// ============================================================================
-
 #include "graph_panel.h"
 #include "imgui.h"
 #include <cmath>
@@ -10,8 +6,6 @@
 #include <numeric>
 
 namespace nodepanda {
-
-// ── Utilidades de color ─────────────────────────────────────────────────────
 
 static ImVec4 typeColor(const std::string& tipo) {
     if (tipo == "proyecto")    return ImVec4(0.15f, 0.85f, 0.90f, 0.95f);
@@ -45,9 +39,6 @@ static ImU32 toCol32(ImVec4 c, float alphaOverride = -1.0f) {
     );
 }
 
-// ============================================================================
-// render — Punto de entrada con toggle 2D/3D
-// ============================================================================
 void GraphPanel::render(App& app) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::Begin("Grafo de Nodos", nullptr,
@@ -58,7 +49,6 @@ void GraphPanel::render(App& app) {
     auto& nodes = graph.getNodes();
     auto& edges = graph.getEdges();
 
-    // ── Toolbar ─────────────────────────────────────────────────────────────
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 4.0f));
     ImGui::SetCursorPos(ImVec2(8.0f, 6.0f));
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.45f, 0.48f, 0.60f, 1.0f));
@@ -83,7 +73,6 @@ void GraphPanel::render(App& app) {
 
     ImGui::SameLine(0.0f, 8.0f);
 
-    // Toggle 2D/3D
     if (m_mode3D) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.50f, 0.25f, 0.60f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.60f, 0.35f, 0.70f, 1.0f));
@@ -93,7 +82,7 @@ void GraphPanel::render(App& app) {
     }
     if (ImGui::SmallButton(m_mode3D ? "Modo: 3D" : "Modo: 2D")) {
         m_mode3D = !m_mode3D;
-        // Sincronizar con force layout
+
         app.getForceLayout().mode3D = m_mode3D;
         app.getForceLayout().reset();
         app.getForceLayout().initialize(app.getGraph(), 800.0f, 600.0f);
@@ -141,9 +130,6 @@ void GraphPanel::render(App& app) {
     ImGui::End();
 }
 
-// ============================================================================
-// render2D — Vista 2D existente
-// ============================================================================
 void GraphPanel::render2D(App& app) {
     auto& graph = app.getGraph();
     auto& nodes = graph.getNodes();
@@ -208,7 +194,6 @@ void GraphPanel::render2D(App& app) {
     dl->PushClipRect(canvasOrig, canvasEnd, true);
     dl->AddRectFilled(canvasOrig, canvasEnd, IM_COL32(10, 11, 16, 255));
 
-    // Grid
     {
         float minorStep = 30.0f * m_zoom;
         if (minorStep >= 4.0f) {
@@ -247,7 +232,6 @@ void GraphPanel::render2D(App& app) {
     else lodLevel = 2;
     int circleSegments = (lodLevel == 0) ? 32 : (lodLevel == 1) ? 16 : 8;
 
-    // Edges
     for (const auto& edge : edges) {
         if (edge.from < 0 || edge.from >= (int)nodes.size()) continue;
         if (edge.to < 0 || edge.to >= (int)nodes.size()) continue;
@@ -280,7 +264,6 @@ void GraphPanel::render2D(App& app) {
         dl->AddLine(p1, p2, edgeCol, thickness);
     }
 
-    // Nodes
     int hoveredNode = -1;
     int nodesDrawn = 0;
 
@@ -344,10 +327,8 @@ void GraphPanel::render2D(App& app) {
     m_lodLevel = lodLevel;
     m_nodesVisible = nodesDrawn;
 
-    // Invalidar m_draggedNode si fuera de rango (por rebuild de grafo)
     if (m_draggedNode >= (int)nodes.size()) m_draggedNode = -1;
 
-    // Interacción
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
         m_draggedNode = hoveredNode;
         if (hoveredNode >= 0 && hoveredNode < (int)nodes.size())
@@ -366,7 +347,6 @@ void GraphPanel::render2D(App& app) {
         m_draggedNode = -1;
     }
 
-    // Leyenda
     {
         const float ox = canvasEnd.x - 155.0f;
         float oy = canvasOrig.y + 8.0f;
@@ -392,7 +372,6 @@ void GraphPanel::render2D(App& app) {
 
     dl->PopClipRect();
 
-    // Tooltip
     if (hoveredNode >= 0 && hoveredNode < (int)nodes.size() && m_draggedNode < 0) {
         const auto& node = nodes[hoveredNode];
         auto* note = app.getNoteManager().getNoteById(node.noteId);
@@ -420,9 +399,6 @@ void GraphPanel::render2D(App& app) {
     }
 }
 
-// ============================================================================
-// render3D — Vista 3D con proyección perspectiva y rotación de cámara
-// ============================================================================
 void GraphPanel::render3D(App& app) {
     auto& graph = app.getGraph();
     auto& nodes = graph.getNodes();
@@ -440,24 +416,20 @@ void GraphPanel::render3D(App& app) {
     const bool hovered = ImGui::IsItemHovered();
     const ImVec2 mousePos = io.MousePos;
 
-    // ── Controles de cámara ─────────────────────────────────────────────────
-    // Click izquierdo arrastrar = rotar
     if (hovered && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 2.0f) && m_draggedNode < 0) {
         m_camYaw   += io.MouseDelta.x * 0.005f;
         m_camPitch += io.MouseDelta.y * 0.005f;
-        // Limitar pitch para evitar gimbal lock
+
         if (m_camPitch > 1.5f) m_camPitch = 1.5f;
         if (m_camPitch < -1.5f) m_camPitch = -1.5f;
     }
 
-    // Click medio arrastrar = pan (ajustar distancia y FOV)
     if (hovered && ImGui::IsMouseDragging(ImGuiMouseButton_Middle, 0.0f)) {
         m_camDist += io.MouseDelta.y * 2.0f;
         if (m_camDist < 100.0f) m_camDist = 100.0f;
         if (m_camDist > 3000.0f) m_camDist = 3000.0f;
     }
 
-    // Scroll = zoom (ajustar distancia)
     if (hovered && io.MouseWheel != 0.0f) {
         m_camDist -= io.MouseWheel * 40.0f;
         if (m_camDist < 100.0f) m_camDist = 100.0f;
@@ -467,10 +439,8 @@ void GraphPanel::render3D(App& app) {
     ImDrawList* dl = ImGui::GetWindowDrawList();
     dl->PushClipRect(canvasOrig, canvasEnd, true);
 
-    // Fondo con gradiente sutil
     dl->AddRectFilled(canvasOrig, canvasEnd, IM_COL32(6, 7, 12, 255));
 
-    // ── Proyectar todos los nodos ───────────────────────────────────────────
     struct NodeProj {
         int   idx;
         float sx, sy, depth, scale;
@@ -485,14 +455,12 @@ void GraphPanel::render3D(App& app) {
         projNodes.push_back({ i, p.sx, p.sy, p.depth, p.scale });
     }
 
-    // Ordenar por profundidad (más lejano primero = pintor's algorithm)
     std::vector<int> drawOrder(projNodes.size());
     std::iota(drawOrder.begin(), drawOrder.end(), 0);
     std::sort(drawOrder.begin(), drawOrder.end(), [&](int a, int b) {
         return projNodes[a].depth > projNodes[b].depth;
     });
 
-    // ── Dibujar aristas ─────────────────────────────────────────────────────
     for (const auto& edge : edges) {
         if (edge.from < 0 || edge.from >= (int)nodes.size() || edge.from >= (int)projNodes.size()) continue;
         if (edge.to < 0 || edge.to >= (int)nodes.size() || edge.to >= (int)projNodes.size()) continue;
@@ -500,7 +468,6 @@ void GraphPanel::render3D(App& app) {
         const auto& pa = projNodes[edge.from];
         const auto& pb = projNodes[edge.to];
 
-        // Alpha basado en profundidad promedio
         float avgDepth = (pa.depth + pb.depth) * 0.5f;
         float depthAlpha = std::max(0.05f, std::min(1.0f, 1.0f - (avgDepth - 200.0f) / 1500.0f));
 
@@ -524,26 +491,22 @@ void GraphPanel::render3D(App& app) {
         dl->AddLine({ pa.sx, pa.sy }, { pb.sx, pb.sy }, edgeCol, thickness);
     }
 
-    // ── Dibujar nodos (orden de profundidad) ────────────────────────────────
     int hoveredNode = -1;
 
     for (int di : drawOrder) {
         const auto& pn = projNodes[di];
         const auto& node = nodes[pn.idx];
 
-        float sr = node.radius * pn.scale * 15.0f; // escalar por perspectiva
+        float sr = node.radius * pn.scale * 15.0f;
         if (sr < 1.0f) sr = 1.0f;
         if (sr > 60.0f) sr = 60.0f;
 
-        // Profundidad → alpha
         float depthAlpha = std::max(0.15f, std::min(1.0f, 1.0f - (pn.depth - 200.0f) / 1500.0f));
 
-        // Culling
         if (pn.sx + sr < canvasOrig.x || pn.sx - sr > canvasEnd.x ||
             pn.sy + sr < canvasOrig.y || pn.sy - sr > canvasEnd.y)
             continue;
 
-        // Hit test
         float dx = mousePos.x - pn.sx;
         float dy = mousePos.y - pn.sy;
         if (hovered && (dx * dx + dy * dy) <= ((sr + 4) * (sr + 4))) {
@@ -555,7 +518,6 @@ void GraphPanel::render3D(App& app) {
 
         int segments = (sr > 10.0f) ? 24 : (sr > 4.0f) ? 16 : 8;
 
-        // Halo para nodo seleccionado
         if (isSelected) {
             dl->AddCircleFilled({ pn.sx, pn.sy }, sr + 10.0f * depthAlpha,
                                 toCol32(col4, 0.12f * depthAlpha), segments);
@@ -563,17 +525,14 @@ void GraphPanel::render3D(App& app) {
                                 toCol32(col4, 0.25f * depthAlpha), segments);
         }
 
-        // Nodo
         dl->AddCircleFilled({ pn.sx, pn.sy }, sr,
                             toCol32(col4, depthAlpha * col4.w), segments);
 
-        // Borde
         ImU32 borderCol = isSelected
             ? IM_COL32(150, 225, 220, (int)(200 * depthAlpha))
             : toCol32(col4, 0.4f * depthAlpha);
         dl->AddCircle({ pn.sx, pn.sy }, sr, borderCol, segments, 1.2f);
 
-        // Label (solo si suficientemente grande y cercano)
         if (sr > 6.0f && depthAlpha > 0.3f) {
             const char* label = node.noteId.c_str();
             ImVec2 textSz = ImGui::CalcTextSize(label);
@@ -589,7 +548,6 @@ void GraphPanel::render3D(App& app) {
         }
     }
 
-    // ── Indicador de ejes 3D (esquina inferior izquierda) ───────────────────
     {
         float axLen = 30.0f;
         float bx = canvasOrig.x + 40.0f;
@@ -597,23 +555,19 @@ void GraphPanel::render3D(App& app) {
         float cosY = std::cos(m_camYaw), sinY = std::sin(m_camYaw);
         float cosP = std::cos(m_camPitch), sinP = std::sin(m_camPitch);
 
-        // Eje X (rojo)
         float x1 = axLen * cosY, z1 = axLen * -sinY;
         dl->AddLine({ bx, by }, { bx + x1, by }, IM_COL32(220, 60, 60, 200), 2.0f);
         dl->AddText({ bx + x1 + 2, by - 6 }, IM_COL32(220, 60, 60, 200), "X");
 
-        // Eje Y (verde)
         float y2 = -axLen * cosP;
         dl->AddLine({ bx, by }, { bx, by + y2 }, IM_COL32(60, 220, 60, 200), 2.0f);
         dl->AddText({ bx + 4, by + y2 - 6 }, IM_COL32(60, 220, 60, 200), "Y");
 
-        // Eje Z (azul)
         float x3 = axLen * sinY, y3 = -axLen * sinP;
         dl->AddLine({ bx, by }, { bx + x3, by + y3 }, IM_COL32(60, 120, 220, 200), 2.0f);
         dl->AddText({ bx + x3 + 2, by + y3 - 6 }, IM_COL32(60, 120, 220, 200), "Z");
     }
 
-    // ── Leyenda ─────────────────────────────────────────────────────────────
     {
         const float ox = canvasEnd.x - 155.0f;
         float oy = canvasOrig.y + 8.0f;
@@ -628,13 +582,11 @@ void GraphPanel::render3D(App& app) {
 
     dl->PopClipRect();
 
-    // ── Interacción: click para seleccionar ─────────────────────────────────
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && hoveredNode >= 0 && hoveredNode < (int)nodes.size()) {
         app.selectedNoteId = nodes[hoveredNode].noteId;
-        m_draggedNode = -1; // no drag en 3D por ahora
+        m_draggedNode = -1;
     }
 
-    // ── Tooltip ─────────────────────────────────────────────────────────────
     if (hoveredNode >= 0 && hoveredNode < (int)nodes.size()) {
         const auto& node = nodes[hoveredNode];
         auto* note = app.getNoteManager().getNoteById(node.noteId);
@@ -657,4 +609,4 @@ void GraphPanel::render3D(App& app) {
     }
 }
 
-} // namespace nodepanda
+}
