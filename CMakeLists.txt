@@ -146,6 +146,17 @@ set(SOURCES
     src/agent_panel.cpp
     src/lab_panel.cpp
     src/cli_runner.cpp
+    src/pdf_engine.cpp
+    src/pdf_panel.cpp
+    src/websocket_rtc.cpp
+    src/rtc_panel.cpp
+    src/table_view_engine.cpp
+    src/table_view_panel.cpp
+    src/vector_engine.cpp
+    src/vector_panel.cpp
+    src/math_renderer.cpp
+    src/math_panel.cpp
+    src/mobile_bridge.cpp
 )
 
 if(WIN32)
