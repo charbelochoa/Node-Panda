@@ -1,29 +1,27 @@
 #pragma once
 
-
 #include <string>
 #include <vector>
 #include <functional>
-
 
 struct lua_State;
 
 namespace nodepanda {
 
-class App;  
+class App;
 
 struct LuaResult {
     bool        success = false;
-    std::string output;          
-    std::string error;           
-    double      elapsedMs = 0.0; 
+    std::string output;
+    std::string error;
+    double      elapsedMs = 0.0;
 };
 
 struct LuaLogEntry {
     enum Type { OUTPUT, LOG_ERROR, INFO };
     Type        type;
     std::string text;
-    std::string timestamp;  
+    std::string timestamp;
 };
 
 class LuaManager {
@@ -50,7 +48,7 @@ private:
     lua_State*               m_lua = nullptr;
     App*                     m_app = nullptr;
     std::vector<LuaLogEntry> m_log;
-    std::string              m_capturedOutput;  
+    std::string              m_capturedOutput;
 };
 
 }
