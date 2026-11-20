@@ -4,12 +4,12 @@
 namespace nodepanda {
 
 struct QuadTreeNode {
-    float cx = 0, cy = 0;    
-    float totalMass = 0;      
-    float x0, y0, x1, y1;    
-    int bodyIndex = -1;       
+    float cx = 0, cy = 0;
+    float totalMass = 0;
+    float x0, y0, x1, y1;
+    int bodyIndex = -1;
     bool isLeaf = true;
-    int children[4] = {-1, -1, -1, -1}; 
+    int children[4] = {-1, -1, -1, -1};
 };
 
 class QuadTree {
@@ -33,4 +33,4 @@ private:
                                   float& fx, float& fy) const;
 };
 
-} 
+}
