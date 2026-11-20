@@ -24,7 +24,6 @@ data/notas/
 data/backups/
 data/assets/
 data/whiteboards/
-data/panda.png
 data/*.tsv
 data/*.dat
 claude_context_export.txt
