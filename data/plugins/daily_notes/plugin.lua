@@ -1,15 +1,9 @@
--- ═══════════════════════════════════════════════════════════════════════════
---  Plugin: Daily Notes
---  Crea una nota de diario automatica con la fecha de hoy al abrir la app.
---  Si ya existe, simplemente la abre.
--- ═══════════════════════════════════════════════════════════════════════════
-
 function on_load()
     local hoy = app.fecha_hoy()
     local id  = "diario-" .. hoy
 
     if not notas.existe(id) then
-        -- Obtener stats para el template
+
         local total = notas.contar()
 
         local contenido = "---\n"
@@ -37,10 +31,8 @@ function on_load()
         print("Daily Notes: Nota de hoy ya existe (" .. id .. ")")
     end
 
-    -- Abrir la nota del dia
     notas.abrir(id)
 
-    -- Registrar menu item para crear nota de manana
     ui.menu_item("Abrir nota de hoy", function()
         notas.abrir("diario-" .. app.fecha_hoy())
     end)
