@@ -35,7 +35,6 @@ namespace nodepanda {
 
 namespace nodepanda {
 
-
 enum class AppState {
     HUB_BIENVENIDA,
     ENTORNO_NOTAS
@@ -73,8 +72,8 @@ private:
     void renderMenuBar();
     void rebuildGraph();
     void processFileWatcherEvents();
-    void renderHubBienvenida();     
-    void importFileToNotes(const std::string& srcPath); 
+    void renderHubBienvenida();
+    void importFileToNotes(const std::string& srcPath);
 
     GLFWwindow* m_window = nullptr;
     NoteManager m_noteManager;
@@ -113,11 +112,11 @@ private:
     std::string m_exportResultMsg;
     int  m_windowWidth    = 1400;
     int  m_windowHeight   = 900;
-    std::string m_prevSelectedNoteId;  
+    std::string m_prevSelectedNoteId;
 
-    unsigned int m_hubPandaTexId  = 0;      
-    bool         m_hubPandaLoaded = false;  
-    char         m_hubNewNoteName[256] = {}; 
+    unsigned int m_hubPandaTexId  = 0;
+    bool         m_hubPandaLoaded = false;
+    char         m_hubNewNoteName[256] = {};
 };
 
-} 
+}
