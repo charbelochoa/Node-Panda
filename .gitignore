@@ -1,11 +1,8 @@
-# ── Build ────────────────────────────────────────────────────────────────────
 build/
 out/
 cmake-build-*/
 *.vcxproj.user
 *.sln
-
-# ── Binarios y objetos ───────────────────────────────────────────────────────
 *.exe
 *.dll
 *.pdb
@@ -16,21 +13,20 @@ cmake-build-*/
 *.o
 *.a
 *.so
-
-# ── CMake cache ──────────────────────────────────────────────────────────────
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 install_manifest.txt
 CTestTestfile.cmake
 _deps/
-
-# ── Datos de usuario (notas personales) ─────────────────────────────────────
+.nodepanda/
 data/notas/
+data/backups/
+data/assets/
+data/whiteboards/
 data/panda.png
 claude_context_export.txt
-
-# ── Editores / IDEs ──────────────────────────────────────────────────────────
+nodepanda-metrics.csv
 .vs/
 .vscode/
 .idea/
@@ -43,8 +39,6 @@ claude_context_export.txt
 *.sdf
 Thumbs.db
 .DS_Store
-
-# ── Dependencias descargadas por FetchContent ────────────────────────────────
 third_party/imgui/
 third_party/glfw/
 third_party/lua/
