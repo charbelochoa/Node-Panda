@@ -1,0 +1,76 @@
+services:
+  nodepanda:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nodepanda-server
+    restart: unless-stopped
+    ports:
+      - "8042:8042"
+    environment:
+      NODEPANDA_PORT: "8042"
+      NODEPANDA_DB_ENGINE: "${NODEPANDA_DB_ENGINE:-postgresql}"
+      NODEPANDA_DB_MODE: "server"
+      NODEPANDA_DB_HOST: "${NODEPANDA_DB_HOST:-postgres}"
+      NODEPANDA_DB_PORT: "${NODEPANDA_DB_PORT:-5432}"
+      NODEPANDA_DB_NAME: "${NODEPANDA_DB_NAME:-nodepanda}"
+      NODEPANDA_DB_USER: "${NODEPANDA_DB_USER:-nodepanda}"
+      NODEPANDA_DB_PASSWORD: "${NODEPANDA_DB_PASSWORD:-nodepanda_secret}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-}"
+      XAI_API_KEY: "${XAI_API_KEY:-}"
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      NVIDIA_API_KEY: "${NVIDIA_API_KEY:-}"
+      NODEPANDA_LOCAL_ENDPOINT: "${NODEPANDA_LOCAL_ENDPOINT:-http://host.docker.internal:8089/v1/chat/completions}"
+    volumes:
+      - nodepanda_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: nodepanda-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nodepanda
+      POSTGRES_USER: nodepanda
+      POSTGRES_PASSWORD: nodepanda_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./data/sql/postgres_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nodepanda -d nodepanda"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mysql:
+    image: mysql:8.0
+    container_name: nodepanda-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: nodepanda
+      MYSQL_USER: nodepanda
+      MYSQL_PASSWORD: nodepanda_secret
+      MYSQL_ROOT_PASSWORD: nodepanda_root_secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./data/sql/mysql_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-unodepanda", "-pnodepanda_secret"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  nodepanda_data:
+  postgres_data:
+  mysql_data:
