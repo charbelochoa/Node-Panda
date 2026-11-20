@@ -368,10 +368,15 @@ std::string HttpServer::buildJsonGraph() {
     }
     oss << "],\"aristas\":[";
     first = true;
+    const auto& nodes = graph.getNodes();
     for (const auto& edge : graph.getEdges()) {
         if (!first) oss << ",";
         first = false;
-        oss << "{\"desde\":\"" << jsonEscape(edge.from) << "\",\"hasta\":\"" << jsonEscape(edge.to) << "\"}";
+        std::string fromId = (edge.from >= 0 && edge.from < static_cast<int>(nodes.size()))
+            ? nodes[edge.from].noteId : std::to_string(edge.from);
+        std::string toId = (edge.to >= 0 && edge.to < static_cast<int>(nodes.size()))
+            ? nodes[edge.to].noteId : std::to_string(edge.to);
+        oss << "{\"desde\":\"" << jsonEscape(fromId) << "\",\"hasta\":\"" << jsonEscape(toId) << "\"}";
     }
     oss << "]}";
     return oss.str();
