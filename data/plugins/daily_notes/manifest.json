@@ -1,9 +1,11 @@
 {
-  "name":        "Daily Notes",
-  "id":          "daily_notes",
-  "version":     "1.0.0",
-  "author":      "NodePanda",
+  "name": "Daily Notes",
+  "id": "daily_notes",
+  "version": "2.0.0",
+  "author": "NodePanda",
   "description": "Crea automaticamente una nota de diario al abrir la app con la fecha del dia.",
-  "hooks":       ["on_load"],
-  "enabled":     true
+  "hooks": [
+    "on_load"
+  ],
+  "enabled": true
 }
