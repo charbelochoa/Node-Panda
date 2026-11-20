@@ -26,8 +26,6 @@ void QuadTree::build(const std::vector<float>& posX, const std::vector<float>& p
     clear();
     if (count == 0) return;
 
-    // Pre-reservar para evitar realocaciones frecuentes durante inserciones
-    // Un quadtree con N cuerpos tiene ~2*N nodos internos en promedio
     m_nodes.reserve(static_cast<size_t>(count) * 4 + 16);
 
     float minX = std::numeric_limits<float>::max();
@@ -55,9 +53,7 @@ void QuadTree::build(const std::vector<float>& posX, const std::vector<float>& p
 }
 
 void QuadTree::subdivide(int nodeIdx) {
-    // IMPORTANTE: NO mantener referencias a m_nodes[nodeIdx] porque
-    // createNode() hace push_back() y puede reasignar el vector,
-    // invalidando cualquier referencia o puntero previo.
+
     float x0   = m_nodes[nodeIdx].x0;
     float y0   = m_nodes[nodeIdx].y0;
     float x1   = m_nodes[nodeIdx].x1;
@@ -65,7 +61,6 @@ void QuadTree::subdivide(int nodeIdx) {
     float midX = (x0 + x1) / 2.0f;
     float midY = (y0 + y1) / 2.0f;
 
-    // Reservar espacio para evitar realocaciones durante la creación
     m_nodes.reserve(m_nodes.size() + 4);
 
     m_nodes[nodeIdx].children[0] = createNode(x0,   y0,   midX, midY);
@@ -81,16 +76,13 @@ int QuadTree::getQuadrant(int nodeIdx, float px, float py) const {
     float midY = (node.y0 + node.y1) / 2.0f;
 
     if (px <= midX) {
-        return (py <= midY) ? 0 : 2; 
+        return (py <= midY) ? 0 : 2;
     } else {
-        return (py <= midY) ? 1 : 3; 
+        return (py <= midY) ? 1 : 3;
     }
 }
 
 void QuadTree::insert(int nodeIdx, int bodyIdx, float bx, float by) {
-    // IMPORTANTE: NO mantener referencias persistentes a m_nodes[nodeIdx]
-    // porque subdivide() e insert() recursivo hacen push_back() y pueden
-    // reasignar el vector, invalidando cualquier referencia previa.
 
     if (m_nodes[nodeIdx].totalMass == 0 && m_nodes[nodeIdx].isLeaf) {
         m_nodes[nodeIdx].bodyIndex = bodyIdx;
@@ -117,7 +109,6 @@ void QuadTree::insert(int nodeIdx, int bodyIdx, float bx, float by) {
         insert(m_nodes[nodeIdx].children[q], bodyIdx, bx, by);
     }
 
-    // Actualizar centro de masa (re-indexar cada acceso por seguridad)
     float oldMass = m_nodes[nodeIdx].totalMass;
     float newMass = oldMass + 1;
     m_nodes[nodeIdx].cx = (m_nodes[nodeIdx].cx * oldMass + bx) / newMass;
@@ -142,7 +133,7 @@ void QuadTree::calculateForceRecursive(int nodeIdx, float px, float py,
     float dx = node.cx - px;
     float dy = node.cy - py;
     float dist = std::sqrt(dx * dx + dy * dy);
-    if (dist < 0.1f) dist = 0.1f; 
+    if (dist < 0.1f) dist = 0.1f;
 
     float width = node.x1 - node.x0;
 
@@ -160,4 +151,4 @@ void QuadTree::calculateForceRecursive(int nodeIdx, float px, float py,
     }
 }
 
-} 
+}
