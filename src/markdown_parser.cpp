@@ -21,7 +21,6 @@ std::vector<std::string> MarkdownParser::extractLinks(const std::string& content
     return links;
 }
 
-
 static bool tryRenderImage(const std::string& imagePath,
                            TextureManager* texManager) {
     if (!texManager) return false;
@@ -80,7 +79,6 @@ void MarkdownParser::renderToImGui(const std::string& content, std::string& clic
             continue;
         }
 
-        
         {
             std::regex imgObsidian(R"(!\[\[(.+?)\]\])");
             std::smatch m;
@@ -99,7 +97,6 @@ void MarkdownParser::renderToImGui(const std::string& content, std::string& clic
             }
         }
 
-        
         {
             std::regex imgMarkdown(R"(!\[([^\]]*)\]\(([^)]+)\))");
             std::smatch m;
@@ -194,4 +191,4 @@ void MarkdownParser::renderToImGui(const std::string& content, std::string& clic
     }
 }
 
-} 
+}
