@@ -4,9 +4,12 @@
 #include "markdown_parser.h"
 #include "lua_manager.h"
 #include "plugin_manager.h"
+#include "ui_theme.h"
+#include "ui_components.h"
 #include "imgui.h"
 
 #include <cstring>
+#include <cstdio>
 #include <filesystem>
 #include <algorithm>
 #include <sstream>
@@ -14,6 +17,7 @@
 namespace nodepanda {
 
 void EditorPanel::renderPandaBanner(App& app) {
+    const ThemePalette& pal = UITheme::palette();
 
     if (!m_pandaLoaded) {
         m_pandaLoaded = true;
@@ -28,14 +32,12 @@ void EditorPanel::renderPandaBanner(App& app) {
             m_pandaTexId = static_cast<unsigned int>(tex->textureId);
     }
 
-    constexpr float IMG_SIZE = 100.0f;
-    constexpr float PAD_TOP  = 10.0f;
-    constexpr float GAP      = 8.0f;
-    constexpr float TEXT_H   = 18.0f;
-    constexpr float PAD_BOT  = 10.0f;
-    constexpr float BANNER_H = PAD_TOP + IMG_SIZE + GAP + TEXT_H + PAD_BOT;
+    constexpr float IMG_SIZE = 76.0f;
+    constexpr float PAD_TOP  = 8.0f;
+    constexpr float PAD_BOT  = 8.0f;
+    constexpr float BANNER_H = PAD_TOP + IMG_SIZE + PAD_BOT;
 
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.05f, 0.05f, 0.08f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, pal.bgBase);
     if (ImGui::BeginChild("##panda_banner", ImVec2(0, BANNER_H), false,
                           ImGuiWindowFlags_NoScrollbar)) {
 
@@ -52,13 +54,13 @@ void EditorPanel::renderPandaBanner(App& app) {
             ImGui::SetCursorPos(
                 ImVec2((availW - fsz.x) * 0.5f,
                        PAD_TOP + (IMG_SIZE - fsz.y) * 0.5f));
-            ImGui::TextColored(ImVec4(0.15f, 0.49f, 0.88f, 1.0f), "%s", fallback);
+            ImGui::TextColored(pal.accent, "%s", fallback);
         }
     }
     ImGui::EndChild();
     ImGui::PopStyleColor();
 
-    ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
+    ImGui::PushStyleColor(ImGuiCol_Separator, pal.borderLine);
     ImGui::Separator();
     ImGui::PopStyleColor();
 }
@@ -84,7 +86,6 @@ std::vector<EditorPanel::LuaCodeBlock> EditorPanel::parseLuaBlocks(const std::st
                 current.startLine = lineNum;
             }
         } else {
-
             std::string trimmed = line;
             size_t start = trimmed.find_first_not_of(" \t");
             if (start != std::string::npos)
@@ -107,7 +108,9 @@ std::vector<EditorPanel::LuaCodeBlock> EditorPanel::parseLuaBlocks(const std::st
 }
 
 void EditorPanel::render(App& app) {
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 8.0f));
+    const ThemePalette& pal = UITheme::palette();
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f, 10.0f));
     ImGui::Begin("Editor de Notas", nullptr,
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
     ImGui::PopStyleVar();
@@ -118,59 +121,37 @@ void EditorPanel::render(App& app) {
     if (app.selectedNoteId.empty()) {
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 40.0f);
         ImVec2 winSize = ImGui::GetContentRegionAvail();
-        ImGui::SetCursorPosX((winSize.x - 280.0f) * 0.5f + ImGui::GetCursorPosX());
-        ImGui::TextColored(ImVec4(0.35f, 0.36f, 0.46f, 1.0f),
-                           "Selecciona una nota del explorador");
-        ImGui::SetCursorPosX((winSize.x - 280.0f) * 0.5f + ImGui::GetCursorPosX());
-        ImGui::TextColored(ImVec4(0.28f, 0.30f, 0.40f, 1.0f),
-                           "o crea una nueva con  + Nota");
+        float cx = ImGui::GetCursorPosX() + std::max(0.0f, (winSize.x - 280.0f) * 0.5f);
+        ImGui::SetCursorPosX(cx);
+        ImGui::TextColored(pal.textSecondary, "Selecciona una nota del explorador");
+        ImGui::SetCursorPosX(cx);
+        ImGui::TextColored(pal.textMuted, "o crea una nueva con + Nota");
         ImGui::End();
         return;
     }
 
     Note* note = app.getNoteManager().getNoteById(app.selectedNoteId);
     if (!note) {
-        ImGui::TextColored(ImVec4(0.90f, 0.40f, 0.35f, 1.0f),
-                           "Nota no encontrada: %s", app.selectedNoteId.c_str());
+        ImGui::TextColored(pal.danger, "Nota no encontrada: %s", app.selectedNoteId.c_str());
         ImGui::End();
         return;
     }
 
     if (m_currentNoteId != note->id) {
         m_currentNoteId = note->id;
-        memset(m_editBuffer, 0, BUFFER_SIZE);
-        strncpy(m_editBuffer, note->content.c_str(), BUFFER_SIZE - 1);
+        std::memset(m_editBuffer, 0, BUFFER_SIZE);
+        std::strncpy(m_editBuffer, note->content.c_str(), BUFFER_SIZE - 1);
         m_previewMode = false;
         m_fieldBuffers.clear();
         for (const auto& [k, v] : note->frontmatter)
             m_fieldBuffers[k] = v;
-        memset(m_newKey,   0, FIELD_SIZE);
-        memset(m_newValue, 0, FIELD_SIZE);
-        m_exportCachedDepth  = -1;
+        std::memset(m_newKey, 0, FIELD_SIZE);
+        std::memset(m_newValue, 0, FIELD_SIZE);
+        m_exportCachedDepth = -1;
         m_exportCachedNoteId.clear();
     }
 
-    ImGui::TextColored(ImVec4(0.80f, 0.82f, 0.96f, 1.0f),
-                       "%s", note->title.c_str());
-    if (note->dirty) {
-        ImGui::SameLine();
-        ImGui::TextColored(ImVec4(0.88f, 0.72f, 0.22f, 1.0f), " [sin guardar]");
-    }
-    {
-        std::string tipo = note->getFrontmatter("tipo");
-        if (!tipo.empty()) {
-            ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.45f, 0.47f, 0.62f, 1.0f),
-                               " [%s]", tipo.c_str());
-        }
-    }
-
-    ImGui::Spacing();
-
-    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.12f, 0.20f, 0.36f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  ImVec4(0.17f, 0.30f, 0.52f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,   ImVec4(0.20f, 0.38f, 0.62f, 1.0f));
-    if (ImGui::Button("  Guardar  ")) {
+    auto saveCurrentNote = [&]() {
         note->frontmatter.clear();
         for (const auto& [k, v] : m_fieldBuffers)
             if (!k.empty()) note->frontmatter[k] = v;
@@ -181,18 +162,63 @@ void EditorPanel::render(App& app) {
         app.graphNeedsRebuild = true;
         app.rebuildKnowledgeIndices();
         app.getPluginManager().callOnNoteSave(note->id);
-    }
-    ImGui::PopStyleColor(3);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Guardar la nota en disco  (Ctrl+S)");
+        m_backlinksCachedId.clear();
+        ui::pushToast("Nota guardada", "success");
+    };
 
-    ImGui::SameLine(0.0f, 4.0f);
+    auto appendSnippet = [&](const char* snippet) {
+        size_t curLen = std::strlen(m_editBuffer);
+        size_t addLen = std::strlen(snippet);
+        if (curLen + addLen + 2 < BUFFER_SIZE) {
+            if (curLen > 0 && m_editBuffer[curLen - 1] != '\n') {
+                m_editBuffer[curLen] = '\n';
+                m_editBuffer[curLen + 1] = '\0';
+                curLen += 1;
+            }
+            std::strncat(m_editBuffer, snippet, BUFFER_SIZE - curLen - 1);
+            note->dirty = true;
+            if (m_previewMode) {
+                note->content = std::string(m_editBuffer);
+                note->parseLinks();
+                note->parseTitle();
+            }
+        }
+    };
+
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
+        ImGui::GetIO().KeyCtrl &&
+        ImGui::IsKeyPressed(ImGuiKey_S, false)) {
+        saveCurrentNote();
+    }
+
+    ImGui::TextColored(pal.textPrimary, "%s", note->title.c_str());
+    if (note->dirty) {
+        ImGui::SameLine(0.0f, 8.0f);
+        ui::badge("Sin guardar", ImVec4(pal.warning.x, pal.warning.y, pal.warning.z, 0.18f), pal.warning);
+    }
+    {
+        std::string tipo = note->getFrontmatter("tipo");
+        if (!tipo.empty()) {
+            ImGui::SameLine(0.0f, 8.0f);
+            ui::badge(tipo.c_str(), pal.accentSoft, pal.accent);
+        }
+    }
+
+    ImGui::Spacing();
+
+    if (ui::primaryButton("  Guardar  ")) {
+        saveCurrentNote();
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Guardar la nota en disco (Ctrl+S)");
+
+    ImGui::SameLine(0.0f, 6.0f);
 
     const char* previewLabel = m_previewMode ? "  Editar  " : "  Preview  ";
-    if (ImGui::Button(previewLabel)) {
+    if (ui::subtleButton(previewLabel)) {
         if (m_previewMode) {
-            memset(m_editBuffer, 0, BUFFER_SIZE);
-            strncpy(m_editBuffer, note->content.c_str(), BUFFER_SIZE - 1);
+            std::memset(m_editBuffer, 0, BUFFER_SIZE);
+            std::strncpy(m_editBuffer, note->content.c_str(), BUFFER_SIZE - 1);
         } else {
             note->content = std::string(m_editBuffer);
             note->parseLinks();
@@ -205,32 +231,24 @@ void EditorPanel::render(App& app) {
             ? "Volver al modo edicion"
             : "Previsualizar el Markdown renderizado");
 
-    ImGui::SameLine(0.0f, 8.0f);
+    ImGui::SameLine(0.0f, 6.0f);
 
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.20f, 0.22f, 0.32f, 1.0f));
-    ImGui::Text("|");
-    ImGui::PopStyleColor();
-    ImGui::SameLine(0.0f, 8.0f);
-
-    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.08f, 0.30f, 0.35f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  ImVec4(0.12f, 0.44f, 0.50f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,   ImVec4(0.06f, 0.24f, 0.28f, 1.0f));
-    if (ImGui::Button("  Exportar Contexto  ")) {
-        m_exportCachedDepth  = -1;
+    if (ui::subtleButton("  Exportar Contexto  ")) {
+        m_exportCachedDepth = -1;
         m_exportCachedNoteId.clear();
-        m_justCopied         = false;
+        m_justCopied = false;
         ImGui::OpenPopup("Exportar Contexto");
     }
-    ImGui::PopStyleColor(3);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Compilar un contexto estructurado\n"
-                          "incluyendo notas enlazadas hasta N saltos");
+        ImGui::SetTooltip("Compilar un contexto estructurado incluyendo notas enlazadas hasta N saltos");
 
-    ImGui::SameLine();
-    ImGui::TextColored(ImVec4(0.33f, 0.34f, 0.44f, 1.0f),
-                       "  |  %d enlaces  |  %d campos",
-                       (int)note->links.size(),
-                       (int)note->frontmatter.size());
+    ImGui::SameLine(0.0f, 10.0f);
+    char metaStats[64];
+    std::snprintf(metaStats, sizeof(metaStats), "%d enlaces", static_cast<int>(note->links.size()));
+    ui::badge(metaStats, pal.bgSurface3, pal.textSecondary);
+    ImGui::SameLine(0.0f, 6.0f);
+    std::snprintf(metaStats, sizeof(metaStats), "%d campos", static_cast<int>(note->frontmatter.size()));
+    ui::badge(metaStats, pal.bgSurface3, pal.textSecondary);
 
     {
         ImVec2 mc = ImGui::GetMainViewport()->GetCenter();
@@ -241,93 +259,65 @@ void EditorPanel::render(App& app) {
                                    ImGuiWindowFlags_AlwaysAutoResize |
                                    ImGuiWindowFlags_NoMove)) {
 
-            ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f),
-                               "Exportar contexto estructurado");
-            ImGui::TextColored(ImVec4(0.55f, 0.56f, 0.66f, 1.0f),
-                               "Nota raiz: ");
+            ImGui::TextColored(pal.aqua, "Exportar contexto estructurado");
+            ImGui::TextColored(pal.textMuted, "Nota raiz:");
             ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.85f, 0.86f, 0.96f, 1.0f),
-                               "%s", note->id.c_str());
+            ImGui::TextColored(pal.textPrimary, "%s", note->id.c_str());
             ImGui::Spacing();
-            ImGui::PushStyleColor(ImGuiCol_Separator,
-                                  ImVec4(0.18f, 0.20f, 0.30f, 0.80f));
             ImGui::Separator();
-            ImGui::PopStyleColor();
             ImGui::Spacing();
 
-            ImGui::TextColored(ImVec4(0.75f, 0.78f, 0.45f, 1.0f),
-                               "Profundidad de enlaces:");
-            ImGui::SetNextItemWidth(310.0f);
+            ImGui::TextColored(pal.textSecondary, "Profundidad de enlaces:");
+            ImGui::SetNextItemWidth(300.0f);
             ImGui::SliderInt("##xdepth", &m_exportDepth, 0, 3);
             ImGui::SameLine(0.0f, 10.0f);
             switch (m_exportDepth) {
-                case 0: ImGui::TextColored(ImVec4(0.40f, 0.90f, 0.55f, 1.0f),
-                                           "Solo la nota actual"); break;
-                case 1: ImGui::TextColored(ImVec4(0.40f, 0.90f, 0.55f, 1.0f),
-                                           "+ enlaces directos"); break;
-                case 2: ImGui::TextColored(ImVec4(0.88f, 0.78f, 0.28f, 1.0f),
-                                           "2 saltos (extenso)"); break;
-                case 3: ImGui::TextColored(ImVec4(0.88f, 0.45f, 0.28f, 1.0f),
-                                           "3 saltos (muy largo)"); break;
+                case 0: ImGui::TextColored(pal.success, "Solo la nota actual"); break;
+                case 1: ImGui::TextColored(pal.success, "+ enlaces directos"); break;
+                case 2: ImGui::TextColored(pal.warning, "2 saltos (extenso)"); break;
+                case 3: ImGui::TextColored(pal.danger, "3 saltos (muy largo)"); break;
             }
             ImGui::Spacing();
 
             if (m_exportDepth != m_exportCachedDepth ||
-                note->id      != m_exportCachedNoteId) {
-                m_exportCachedDepth  = m_exportDepth;
+                note->id != m_exportCachedNoteId) {
+                m_exportCachedDepth = m_exportDepth;
                 m_exportCachedNoteId = note->id;
-                auto ids             = GetContextNoteIds(note->id, m_exportDepth,
-                                                         app.getNoteManager());
-                m_exportNoteCount    = static_cast<int>(ids.size());
+                auto ids = GetContextNoteIds(note->id, m_exportDepth, app.getNoteManager());
+                m_exportNoteCount = static_cast<int>(ids.size());
             }
 
             if (m_exportNoteCount <= 5)
-                ImGui::TextColored(ImVec4(0.35f, 0.90f, 0.60f, 1.0f),
-                                   "Se incluiran %d nota(s).", m_exportNoteCount);
+                ImGui::TextColored(pal.success, "Se incluiran %d nota(s).", m_exportNoteCount);
             else if (m_exportNoteCount <= 15)
-                ImGui::TextColored(ImVec4(0.88f, 0.78f, 0.28f, 1.0f),
-                                   "Se incluiran %d notas (contexto extenso).",
-                                   m_exportNoteCount);
+                ImGui::TextColored(pal.warning, "Se incluiran %d notas (contexto extenso).", m_exportNoteCount);
             else
-                ImGui::TextColored(ImVec4(0.88f, 0.40f, 0.28f, 1.0f),
-                                   "Se incluiran %d notas — considera reducir profundidad.",
-                                   m_exportNoteCount);
+                ImGui::TextColored(pal.danger, "Se incluiran %d notas - considera reducir profundidad.", m_exportNoteCount);
 
             ImGui::Spacing();
-            ImGui::PushStyleColor(ImGuiCol_Separator,
-                                  ImVec4(0.18f, 0.20f, 0.30f, 0.80f));
             ImGui::Separator();
-            ImGui::PopStyleColor();
             ImGui::Spacing();
 
-            ImGui::PushStyleColor(ImGuiCol_Button,
-                                  ImVec4(0.10f, 0.32f, 0.18f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                  ImVec4(0.15f, 0.46f, 0.26f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                  ImVec4(0.08f, 0.24f, 0.13f, 1.0f));
-            if (ImGui::Button("Copiar al Portapapeles", ImVec2(210.0f, 0.0f))) {
-                std::string ctx = CompileContext(note->id, m_exportDepth,
-                                                 app.getNoteManager());
+            if (ui::primaryButton("Copiar al Portapapeles", ImVec2(210.0f, 0.0f))) {
+                std::string ctx = CompileContext(note->id, m_exportDepth, app.getNoteManager());
                 if (!ctx.empty()) {
                     ImGui::SetClipboardText(ctx.c_str());
                     m_justCopied = true;
+                    ui::pushToast("Contexto copiado al portapapeles", "success");
                 }
             }
-            ImGui::PopStyleColor(3);
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Compila el contexto y lo copia al portapapeles del sistema");
 
             if (m_justCopied) {
                 ImGui::SameLine(0.0f, 10.0f);
-                ImGui::TextColored(ImVec4(0.28f, 0.95f, 0.60f, 1.0f),
-                                   "  Copiado!");
+                ImGui::TextColored(pal.success, "Copiado");
             }
 
             ImGui::SameLine();
-            float closeX = ImGui::GetContentRegionAvail().x - 70.0f;
-            if (closeX > 0) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + closeX);
-            if (ImGui::Button("Cerrar", ImVec2(70.0f, 0.0f))) {
+            float closeX = ImGui::GetContentRegionAvail().x - 80.0f;
+            if (closeX > 0.0f) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + closeX);
+            if (ui::subtleButton("Cerrar", ImVec2(80.0f, 0.0f))) {
                 m_justCopied = false;
                 ImGui::CloseCurrentPopup();
             }
@@ -337,8 +327,7 @@ void EditorPanel::render(App& app) {
     }
 
     ImGui::Spacing();
-    ImGui::Spacing();
-    ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
+    ImGui::PushStyleColor(ImGuiCol_Separator, pal.borderLine);
     ImGui::Separator();
     ImGui::PopStyleColor();
     ImGui::Spacing();
@@ -348,29 +337,27 @@ void EditorPanel::render(App& app) {
         ImGui::Indent(8.0f);
 
         if (m_fieldBuffers.empty())
-            ImGui::TextColored(ImVec4(0.38f, 0.40f, 0.50f, 1.0f),
-                               "Sin metadatos — agrega campos abajo.");
+            ImGui::TextColored(pal.textMuted, "Sin metadatos - agrega campos abajo.");
 
         std::string toDelete;
         for (auto& [key, val] : m_fieldBuffers) {
             ImGui::PushID(key.c_str());
 
-            ImGui::TextColored(ImVec4(0.35f, 0.72f, 0.90f, 1.0f),
-                               "%s:", key.c_str());
+            ImGui::TextColored(pal.accent, "%s:", key.c_str());
             ImGui::SameLine();
 
             char buf[FIELD_SIZE] = {};
-            strncpy(buf, val.c_str(), FIELD_SIZE - 1);
+            std::strncpy(buf, val.c_str(), FIELD_SIZE - 1);
             ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - 70.0f);
             std::string inputId = "##v_" + key;
             if (ImGui::InputText(inputId.c_str(), buf, FIELD_SIZE)) {
-                val         = std::string(buf);
+                val = std::string(buf);
                 note->dirty = true;
             }
             ImGui::PopItemWidth();
             ImGui::SameLine();
-            if (ImGui::SmallButton("X")) {
-                toDelete    = key;
+            if (ui::dangerButton("X", ImVec2(28.0f, 0.0f))) {
+                toDelete = key;
                 note->dirty = true;
             }
             if (ImGui::IsItemHovered())
@@ -384,24 +371,22 @@ void EditorPanel::render(App& app) {
         }
 
         ImGui::Spacing();
-        ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.16f, 0.18f, 0.28f, 0.60f));
         ImGui::Separator();
-        ImGui::PopStyleColor();
-        ImGui::TextColored(ImVec4(0.40f, 0.65f, 0.35f, 1.0f), "Agregar campo:");
+        ImGui::TextColored(pal.textSecondary, "Agregar campo:");
         ImGui::SetNextItemWidth(110.0f);
         ImGui::InputTextWithHint("##nk", "clave", m_newKey, FIELD_SIZE);
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 36.0f);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 42.0f);
         ImGui::InputTextWithHint("##nv", "valor", m_newValue, FIELD_SIZE);
         ImGui::SameLine();
-        if (ImGui::SmallButton(" + ")) {
+        if (ui::subtleButton(" + ", ImVec2(34.0f, 0.0f))) {
             std::string k(m_newKey), v(m_newValue);
             if (!k.empty()) {
-                m_fieldBuffers[k]     = v;
-                note->frontmatter[k]  = v;
-                note->dirty           = true;
-                memset(m_newKey,   0, FIELD_SIZE);
-                memset(m_newValue, 0, FIELD_SIZE);
+                m_fieldBuffers[k] = v;
+                note->frontmatter[k] = v;
+                note->dirty = true;
+                std::memset(m_newKey, 0, FIELD_SIZE);
+                std::memset(m_newValue, 0, FIELD_SIZE);
             }
         }
         if (ImGui::IsItemHovered())
@@ -411,31 +396,65 @@ void EditorPanel::render(App& app) {
         ImGui::Spacing();
     }
 
-    ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
+    ImGui::PushStyleColor(ImGuiCol_Separator, pal.borderLine);
     ImGui::Separator();
     ImGui::PopStyleColor();
     ImGui::Spacing();
 
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(7.0f, 4.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(5.0f, 4.0f));
+    ImGui::TextColored(pal.textMuted, "/");
+    ImGui::SameLine();
+    if (ui::subtleButton("+ TODO")) {
+        appendSnippet("- TODO ");
+    }
+    ImGui::SameLine();
+    if (ui::subtleButton("+ DOING")) {
+        appendSnippet("- DOING ");
+    }
+    ImGui::SameLine();
+    if (ui::subtleButton("+ Bloque")) {
+        appendSnippet("- Nuevo bloque\n  - Detalle");
+    }
+    ImGui::SameLine();
+    if (ui::subtleButton("+ Cloze")) {
+        appendSnippet("{{cloze respuesta}}");
+    }
+    ImGui::SameLine();
+    if (ui::subtleButton("+ LaTeX")) {
+        appendSnippet("$$E = mc^2$$");
+    }
+    ImGui::SameLine();
+    if (ui::subtleButton("+ Enlace")) {
+        appendSnippet("[[NuevaNota]]");
+    }
+    ImGui::SameLine();
+    if (ui::subtleButton("+ Propiedad")) {
+        appendSnippet("clave:: valor");
+    }
+    ImGui::PopStyleVar(2);
+    ImGui::Spacing();
+
     if (m_backlinksCachedId != note->id) {
         m_backlinksCachedId = note->id;
-        m_cachedBacklinks   = app.getNoteManager().getBacklinks(note->id);
+        m_cachedBacklinks = app.getNoteManager().getBacklinks(note->id);
     }
 
     float backlinksH = m_cachedBacklinks.empty()
         ? 48.0f
-        : std::min(160.0f, 40.0f + (float)m_cachedBacklinks.size() * 24.0f);
+        : std::min(150.0f, 40.0f + static_cast<float>(m_cachedBacklinks.size()) * 24.0f);
     float bodyH = ImGui::GetContentRegionAvail().y - backlinksH - 16.0f;
     if (bodyH < 80.0f) bodyH = 80.0f;
 
     if (m_previewMode) {
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.07f, 0.08f, 0.12f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, pal.bgSurface2);
         ImGui::BeginChild("##preview", ImVec2(0, bodyH), true);
         ImGui::PopStyleColor();
 
         std::string clickedLink;
         std::string notesDir = app.getNoteManager().getNotesDirectory().string();
         MarkdownParser::renderToImGui(note->content, clickedLink,
-                                     &app.getTextureManager(), notesDir);
+                                      &app.getTextureManager(), notesDir);
         if (!clickedLink.empty()) {
             std::string resolved = app.getNoteManager().resolveAlias(clickedLink);
             if (app.getNoteManager().getNoteById(resolved)) {
@@ -447,53 +466,44 @@ void EditorPanel::render(App& app) {
         auto luaBlocks = parseLuaBlocks(note->content);
         if (!luaBlocks.empty()) {
             ImGui::Spacing();
-            ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.18f, 0.20f, 0.30f, 0.80f));
             ImGui::Separator();
-            ImGui::PopStyleColor();
             ImGui::Spacing();
-            ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f),
-                               "Bloques Lua detectados: %d", (int)luaBlocks.size());
+            ImGui::TextColored(pal.aqua, "Bloques Lua detectados: %d", static_cast<int>(luaBlocks.size()));
             ImGui::Spacing();
 
             for (size_t i = 0; i < luaBlocks.size(); ++i) {
-                ImGui::PushID((int)i);
+                ImGui::PushID(static_cast<int>(i));
                 const auto& block = luaBlocks[i];
 
-                ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.04f, 0.04f, 0.07f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ChildBg, pal.bgBase);
                 float codeH = std::min(150.0f,
                     ImGui::GetTextLineHeightWithSpacing() *
-                    (float)(std::count(block.code.begin(), block.code.end(), '\n') + 1) + 8.0f);
+                    static_cast<float>(std::count(block.code.begin(), block.code.end(), '\n') + 1) + 8.0f);
                 char childId[32];
-                std::snprintf(childId, sizeof(childId), "##luablock_%d", (int)i);
+                std::snprintf(childId, sizeof(childId), "##luablock_%d", static_cast<int>(i));
                 ImGui::BeginChild(childId, ImVec2(0, codeH), true);
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.75f, 0.82f, 0.65f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Text, pal.textPrimary);
                 ImGui::TextUnformatted(block.code.c_str());
                 ImGui::PopStyleColor();
                 ImGui::EndChild();
                 ImGui::PopStyleColor();
 
-                ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.12f, 0.45f, 0.40f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  ImVec4(0.18f, 0.58f, 0.52f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive,   ImVec4(0.08f, 0.35f, 0.30f, 1.0f));
                 char btnLabel[64];
-                std::snprintf(btnLabel, sizeof(btnLabel), "  Run bloque %d  ", (int)(i + 1));
-                if (ImGui::Button(btnLabel)) {
+                std::snprintf(btnLabel, sizeof(btnLabel), "  Run bloque %d  ", static_cast<int>(i + 1));
+                if (ui::primaryButton(btnLabel)) {
                     auto& lua = app.getLuaManager();
                     lua.logInfo(">>> [Bloque " + std::to_string(i + 1) +
                                 " desde linea " + std::to_string(block.startLine) + "]");
                     auto result = lua.execute(block.code);
                     char timeBuf[64];
-                    std::snprintf(timeBuf, sizeof(timeBuf),
-                                  "Ejecutado en %.2f ms", result.elapsedMs);
+                    std::snprintf(timeBuf, sizeof(timeBuf), "Ejecutado en %.2f ms", result.elapsedMs);
                     lua.logInfo(timeBuf);
                 }
-                ImGui::PopStyleColor(3);
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("Ejecutar este bloque Lua en la consola");
 
                 ImGui::SameLine();
-                ImGui::TextColored(ImVec4(0.35f, 0.37f, 0.48f, 1.0f),
-                                   "linea %d", (int)block.startLine);
+                ImGui::TextColored(pal.textMuted, "linea %d", static_cast<int>(block.startLine));
                 ImGui::Spacing();
                 ImGui::PopID();
             }
@@ -501,18 +511,17 @@ void EditorPanel::render(App& app) {
 
         ImGui::EndChild();
     } else {
-
-        ImGui::PushStyleColor(ImGuiCol_FrameBg,   ImVec4(0.08f, 0.08f, 0.12f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, ImVec4(0.06f, 0.06f, 0.09f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, pal.bgBase);
+        ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, pal.bgSurface1);
         if (ImGui::InputTextMultiline("##editor", m_editBuffer, BUFFER_SIZE,
-                                     ImVec2(-1.0f, bodyH),
-                                     ImGuiInputTextFlags_AllowTabInput)) {
+                                      ImVec2(-1.0f, bodyH),
+                                      ImGuiInputTextFlags_AllowTabInput)) {
             note->dirty = true;
         }
         ImGui::PopStyleColor(2);
     }
 
-    ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
+    ImGui::PushStyleColor(ImGuiCol_Separator, pal.borderLine);
     ImGui::Separator();
     ImGui::PopStyleColor();
 
@@ -521,17 +530,15 @@ void EditorPanel::render(App& app) {
                            ")###backlinks";
     if (ImGui::CollapsingHeader(blHeader.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
         if (m_cachedBacklinks.empty()) {
-            ImGui::TextColored(ImVec4(0.35f, 0.36f, 0.46f, 1.0f),
-                               "  Ninguna nota enlaza aqui.");
+            ImGui::TextColored(pal.textMuted, "  Ninguna nota enlaza aqui.");
         } else {
             ImGui::BeginChild("##bl_scroll", ImVec2(0, 0), false);
             for (size_t i = 0; i < m_cachedBacklinks.size(); ++i) {
                 const auto& bl = m_cachedBacklinks[i];
-                ImGui::PushID((int)i);
-                ImGui::PushStyleColor(ImGuiCol_Text,
-                                      ImVec4(0.28f, 0.80f, 0.55f, 1.0f));
+                ImGui::PushID(static_cast<int>(i));
+                ImGui::PushStyleColor(ImGuiCol_Text, pal.aqua);
                 if (ImGui::Selectable(("  << [[" + bl + "]]").c_str(), false)) {
-                    app.selectedNoteId  = bl;
+                    app.selectedNoteId = bl;
                     m_currentNoteId.clear();
                     m_backlinksCachedId.clear();
                 }
@@ -541,8 +548,7 @@ void EditorPanel::render(App& app) {
                     auto* blNote = app.getNoteManager().getNoteById(bl);
                     if (blNote) {
                         ImGui::BeginTooltip();
-                        ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f),
-                                           "%s", blNote->title.c_str());
+                        ImGui::TextColored(pal.accent, "%s", blNote->title.c_str());
                         std::string prev = blNote->content.substr(0, 180);
                         if (blNote->content.size() > 180) prev += "...";
                         ImGui::TextWrapped("%s", prev.c_str());
