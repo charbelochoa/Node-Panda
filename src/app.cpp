@@ -1,9 +1,8 @@
 #ifdef _WIN32
-    #define NOMINMAX
-    #define WIN32_LEAN_AND_MEAN
-    #include <windows.h>
-    #include <commdlg.h>
-    #pragma comment(lib, "comdlg32.lib")
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <commdlg.h>
 #endif
 
 #include "app.h"
@@ -20,7 +19,19 @@
 #include "srs_panel.h"
 #include "git_panel.h"
 #include "http_panel.h"
+#include "database_panel.h"
+#include "outliner_panel.h"
+#include "task_panel.h"
+#include "journal_panel.h"
+#include "whiteboard_panel.h"
+#include "asset_panel.h"
+#include "sync_panel.h"
+#include "command_palette.h"
+#include "agent_panel.h"
+#include "lab_panel.h"
 #include "ai_exporter.h"
+#include "ui_theme.h"
+#include "ui_components.h"
 
 extern "C" {
 #include <lua.h>
@@ -33,35 +44,86 @@ extern "C" {
 #include "imgui_impl_opengl3.h"
 
 #include <GLFW/glfw3.h>
+#include <chrono>
+#include <csignal>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <iostream>
+#include <thread>
 #include <unordered_set>
 
 namespace nodepanda {
 
-static void glfwErrorCallback(int error, const char* description) {
-    fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+namespace {
+
+volatile std::sig_atomic_t g_serverStopSignal = 0;
+
+void handleServerSignal(int) {
+    g_serverStopSignal = 1;
 }
 
-static std::string openFileDialog() {
+void glfwErrorCallback(int error, const char* description) {
+    std::fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+}
+
+std::string openFileDialog() {
 #ifdef _WIN32
     char filename[MAX_PATH] = {};
-    OPENFILENAMEA ofn        = {};
-    ofn.lStructSize          = sizeof(ofn);
-    ofn.hwndOwner            = nullptr;
-    ofn.lpstrFilter          = "Archivos de notas (*.md;*.txt)\0*.md;*.txt\0"
-                               "Markdown (*.md)\0*.md\0"
-                               "Texto plano (*.txt)\0*.txt\0"
-                               "Todos los archivos (*.*)\0*.*\0";
-    ofn.lpstrFile            = filename;
-    ofn.nMaxFile             = MAX_PATH;
-    ofn.Flags                = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-    ofn.lpstrTitle           = "Seleccionar archivo de notas";
-    if (GetOpenFileNameA(&ofn))
-        return std::string(filename);
+    OPENFILENAMEA ofn = {};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = nullptr;
+    ofn.lpstrFilter = "Archivos de notas (*.md;*.txt)\0*.md;*.txt\0Markdown (*.md)\0*.md\0Texto plano (*.txt)\0*.txt\0Todos los archivos (*.*)\0*.*\0";
+    ofn.lpstrFile = filename;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    ofn.lpstrTitle = "Seleccionar archivo";
+    if (GetOpenFileNameA(&ofn)) return std::string(filename);
 #endif
     return {};
+}
+
+void setupDockLayout(ImGuiID dockspaceId, ImVec2 size) {
+    ImGui::DockBuilderRemoveNode(dockspaceId);
+    ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace | ImGuiDockNodeFlags_NoWindowMenuButton);
+    ImGui::DockBuilderSetNodeSize(dockspaceId, size);
+
+    ImGuiID leftId, centerId, rightId, rightBottomId, centerBottomId;
+    ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.19f, &leftId, &centerId);
+    ImGui::DockBuilderSplitNode(centerId, ImGuiDir_Right, 0.36f, &rightId, &centerId);
+    ImGui::DockBuilderSplitNode(rightId, ImGuiDir_Down, 0.42f, &rightBottomId, &rightId);
+    ImGui::DockBuilderSplitNode(centerId, ImGuiDir_Down, 0.30f, &centerBottomId, &centerId);
+
+    ImGui::DockBuilderDockWindow("Explorador de Notas", leftId);
+    ImGui::DockBuilderDockWindow("Diarios", leftId);
+    ImGui::DockBuilderDockWindow("Centro de Mando", leftId);
+    ImGui::DockBuilderDockWindow("Base de Datos", leftId);
+    ImGui::DockBuilderDockWindow("Sincronizacion", leftId);
+    ImGui::DockBuilderDockWindow("Activos", leftId);
+    ImGui::DockBuilderDockWindow("Gestor de Plugins", leftId);
+    ImGui::DockBuilderDockWindow("Repeticion Espaciada", leftId);
+    ImGui::DockBuilderDockWindow("Control de Versiones", leftId);
+    ImGui::DockBuilderDockWindow("Servidor API", leftId);
+
+    ImGui::DockBuilderDockWindow("Editor de Notas", centerId);
+    ImGui::DockBuilderDockWindow("Outliner", centerId);
+    ImGui::DockBuilderDockWindow("Tareas", centerId);
+    ImGui::DockBuilderDockWindow("Pizarra", centerId);
+    ImGui::DockBuilderDockWindow("Agentes IA", centerId);
+    ImGui::DockBuilderDockWindow("Laboratorio", centerId);
+
+    ImGui::DockBuilderDockWindow("Consola Lua", centerBottomId);
+    ImGui::DockBuilderDockWindow("Motor de Consultas", centerBottomId);
+
+    ImGui::DockBuilderDockWindow("Grafo de Nodos", rightId);
+    ImGui::DockBuilderDockWindow("Backlinks", rightBottomId);
+    ImGui::DockBuilderDockWindow("Motor de Memoria", rightBottomId);
+    ImGui::DockBuilderDockWindow("Analisis de Grafo", rightBottomId);
+
+    ImGui::DockBuilderFinish(dockspaceId);
+}
+
 }
 
 App::App()
@@ -78,6 +140,16 @@ App::App()
     , m_srsPanel(new SRSPanel())
     , m_gitPanel(new GitPanel())
     , m_httpPanel(new HttpPanel())
+    , m_databasePanel(new DatabasePanel())
+    , m_outlinerPanel(new OutlinerPanel())
+    , m_taskPanel(new TaskPanel())
+    , m_journalPanel(new JournalPanel())
+    , m_whiteboardPanel(new WhiteboardPanel())
+    , m_assetPanel(new AssetPanel())
+    , m_syncPanel(new SyncPanel())
+    , m_commandPalette(new CommandPalette())
+    , m_agentPanel(new AgentPanel())
+    , m_labPanel(new LabPanel())
 {}
 
 App::~App() {
@@ -94,140 +166,106 @@ App::~App() {
     delete m_srsPanel;
     delete m_gitPanel;
     delete m_httpPanel;
+    delete m_databasePanel;
+    delete m_outlinerPanel;
+    delete m_taskPanel;
+    delete m_journalPanel;
+    delete m_whiteboardPanel;
+    delete m_assetPanel;
+    delete m_syncPanel;
+    delete m_commandPalette;
+    delete m_agentPanel;
+    delete m_labPanel;
 }
 
-static void applyTheme() {
-    ImGuiStyle& s = ImGui::GetStyle();
+bool App::initCore() {
+    if (m_coreInitialized) return true;
 
-    s.WindowRounding     = 0.0f;
-    s.ChildRounding      = 6.0f;
-    s.FrameRounding      = 5.0f;
-    s.GrabRounding       = 5.0f;
-    s.TabRounding        = 5.0f;
-    s.PopupRounding      = 6.0f;
-    s.ScrollbarRounding  = 6.0f;
-    s.WindowBorderSize   = 0.0f;
-    s.ChildBorderSize    = 1.0f;
-    s.FrameBorderSize    = 0.0f;
-    s.PopupBorderSize    = 1.0f;
-    s.TabBorderSize      = 0.0f;
+    auto baseDir = std::filesystem::current_path();
+    auto dataDir = baseDir / "data";
+    auto notesDir = dataDir / "notas";
+    std::error_code ec;
+    std::filesystem::create_directories(notesDir, ec);
 
-    s.WindowPadding      = ImVec2(12.0f, 10.0f);
-    s.FramePadding       = ImVec2(8.0f,  4.5f);
-    s.ItemSpacing        = ImVec2(8.0f,  6.0f);
-    s.ItemInnerSpacing   = ImVec2(5.0f,  4.0f);
-    s.ScrollbarSize      = 10.0f;
-    s.GrabMinSize        = 8.0f;
-    s.IndentSpacing      = 16.0f;
-    s.DockingSeparatorSize = 2.0f;
+    m_authManager.init(baseDir);
+    m_databaseManager.init(dataDir);
+    m_noteManager.setNotesDirectory(notesDir);
+    m_noteManager.scanDirectory();
 
-    ImVec4* c = s.Colors;
+    if (m_noteManager.getAllNotes().empty()) {
+        auto* welcome = m_noteManager.createNote("Bienvenida");
+        if (welcome) {
+            welcome->frontmatter["tipo"] = "proyecto";
+            welcome->frontmatter["tags"] = "inicio, grafo";
+            welcome->content =
+                "# Bienvenida\n\n"
+                "- Crea y organiza bloques jerarquicos en el Outliner\n"
+                "  - Enlaza paginas con `[[NombreDeLaNota]]`\n"
+                "  - Usa propiedades con `estado:: activo`\n"
+                "- TODO [#A] Revisar conexion con [[ProyectoIA]] y [[Ideas]]\n";
+            welcome->saveToFile();
+            welcome->parseLinks();
+            welcome->parseTitle();
+        }
 
-    c[ImGuiCol_Text]                 = ImVec4(0.86f, 0.87f, 0.93f, 1.00f);
-    c[ImGuiCol_TextDisabled]         = ImVec4(0.40f, 0.41f, 0.50f, 1.00f);
-    c[ImGuiCol_TextSelectedBg]       = ImVec4(0.20f, 0.60f, 0.57f, 0.38f);
+        auto* proyecto = m_noteManager.createNote("ProyectoIA");
+        if (proyecto) {
+            proyecto->frontmatter["tipo"] = "proyecto";
+            proyecto->frontmatter["aliases"] = "IA, Agentes";
+            proyecto->frontmatter["tags"] = "agentes, datalog";
+            proyecto->content =
+                "# Proyecto IA\n\n"
+                "- Coordinacion multi-agente en C++\n"
+                "- DOING [#A] Evaluar modelos locales y APIs externas\n"
+                "- Relacionado con [[Ideas]] y [[Bienvenida]]\n";
+            proyecto->saveToFile();
+            proyecto->parseLinks();
+            proyecto->parseTitle();
+        }
 
-    c[ImGuiCol_WindowBg]             = ImVec4(0.07f, 0.07f, 0.10f, 1.00f);
-    c[ImGuiCol_ChildBg]              = ImVec4(0.08f, 0.08f, 0.11f, 1.00f);
-    c[ImGuiCol_PopupBg]              = ImVec4(0.09f, 0.09f, 0.13f, 0.97f);
+        auto* ideas = m_noteManager.createNote("Ideas");
+        if (ideas) {
+            ideas->frontmatter["tipo"] = "concepto";
+            ideas->frontmatter["tags"] = "arquitectura";
+            ideas->content =
+                "# Ideas\n\n"
+                "- Base de conocimiento enlazada para [[ProyectoIA]]\n"
+                "- LATER [#B] Disenar pizarra visual del grafo\n";
+            ideas->saveToFile();
+            ideas->parseLinks();
+            ideas->parseTitle();
+        }
+    }
 
-    c[ImGuiCol_Border]               = ImVec4(0.18f, 0.18f, 0.26f, 0.55f);
-    c[ImGuiCol_BorderShadow]         = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    m_propertyEngine.init(dataDir);
+    m_assetManager.init(dataDir);
+    m_backupManager.init(dataDir);
+    m_syncEngine.init(dataDir);
+    m_whiteboardEngine.init(dataDir / "whiteboards");
+    m_aiCatalog.init(dataDir);
+    m_skillManager.init(dataDir / "skills");
+    m_usageLedger.init(dataDir);
+    m_evolutionEngine.init(dataDir);
+    m_agentEngine.init(baseDir, &m_aiCatalog, &m_contextBrain, &m_skillManager, &m_usageLedger, &m_noteManager);
+    m_gitManager.init(notesDir);
 
-    c[ImGuiCol_FrameBg]              = ImVec4(0.11f, 0.11f, 0.17f, 1.00f);
-    c[ImGuiCol_FrameBgHovered]       = ImVec4(0.15f, 0.16f, 0.23f, 1.00f);
-    c[ImGuiCol_FrameBgActive]        = ImVec4(0.19f, 0.20f, 0.29f, 1.00f);
-
-    c[ImGuiCol_TitleBg]              = ImVec4(0.07f, 0.07f, 0.10f, 1.00f);
-    c[ImGuiCol_TitleBgActive]        = ImVec4(0.09f, 0.09f, 0.14f, 1.00f);
-    c[ImGuiCol_TitleBgCollapsed]     = ImVec4(0.05f, 0.05f, 0.07f, 0.90f);
-
-    c[ImGuiCol_MenuBarBg]            = ImVec4(0.06f, 0.06f, 0.09f, 1.00f);
-    c[ImGuiCol_ScrollbarBg]          = ImVec4(0.06f, 0.06f, 0.09f, 1.00f);
-    c[ImGuiCol_ScrollbarGrab]        = ImVec4(0.20f, 0.22f, 0.32f, 1.00f);
-    c[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.27f, 0.30f, 0.42f, 1.00f);
-    c[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.34f, 0.38f, 0.52f, 1.00f);
-
-    c[ImGuiCol_CheckMark]            = ImVec4(0.28f, 0.82f, 0.76f, 1.00f);
-    c[ImGuiCol_SliderGrab]           = ImVec4(0.28f, 0.72f, 0.68f, 1.00f);
-    c[ImGuiCol_SliderGrabActive]     = ImVec4(0.35f, 0.88f, 0.82f, 1.00f);
-
-    c[ImGuiCol_Button]               = ImVec4(0.12f, 0.20f, 0.34f, 1.00f);
-    c[ImGuiCol_ButtonHovered]        = ImVec4(0.17f, 0.33f, 0.52f, 1.00f);
-    c[ImGuiCol_ButtonActive]         = ImVec4(0.20f, 0.40f, 0.62f, 1.00f);
-
-    c[ImGuiCol_Header]               = ImVec4(0.13f, 0.20f, 0.36f, 1.00f);
-    c[ImGuiCol_HeaderHovered]        = ImVec4(0.18f, 0.30f, 0.50f, 1.00f);
-    c[ImGuiCol_HeaderActive]         = ImVec4(0.22f, 0.36f, 0.58f, 1.00f);
-
-    c[ImGuiCol_Separator]            = ImVec4(0.16f, 0.17f, 0.24f, 0.80f);
-    c[ImGuiCol_SeparatorHovered]     = ImVec4(0.28f, 0.72f, 0.68f, 0.78f);
-    c[ImGuiCol_SeparatorActive]      = ImVec4(0.35f, 0.88f, 0.82f, 1.00f);
-
-    c[ImGuiCol_ResizeGrip]           = ImVec4(0.28f, 0.72f, 0.68f, 0.20f);
-    c[ImGuiCol_ResizeGripHovered]    = ImVec4(0.28f, 0.72f, 0.68f, 0.67f);
-    c[ImGuiCol_ResizeGripActive]     = ImVec4(0.35f, 0.88f, 0.82f, 0.95f);
-
-    c[ImGuiCol_Tab]                  = ImVec4(0.09f, 0.10f, 0.15f, 1.00f);
-    c[ImGuiCol_TabHovered]           = ImVec4(0.18f, 0.32f, 0.52f, 1.00f);
-    c[ImGuiCol_TabActive]            = ImVec4(0.14f, 0.25f, 0.42f, 1.00f);
-    c[ImGuiCol_TabUnfocused]         = ImVec4(0.07f, 0.08f, 0.12f, 1.00f);
-    c[ImGuiCol_TabUnfocusedActive]   = ImVec4(0.10f, 0.16f, 0.28f, 1.00f);
-
-    c[ImGuiCol_DockingPreview]       = ImVec4(0.28f, 0.72f, 0.68f, 0.70f);
-    c[ImGuiCol_DockingEmptyBg]       = ImVec4(0.06f, 0.06f, 0.09f, 1.00f);
-
-    c[ImGuiCol_PlotLines]            = ImVec4(0.35f, 0.80f, 0.72f, 1.00f);
-    c[ImGuiCol_PlotLinesHovered]     = ImVec4(0.42f, 0.95f, 0.87f, 1.00f);
-    c[ImGuiCol_PlotHistogram]        = ImVec4(0.28f, 0.65f, 0.62f, 1.00f);
-    c[ImGuiCol_PlotHistogramHovered] = ImVec4(0.35f, 0.82f, 0.78f, 1.00f);
-
-    c[ImGuiCol_NavHighlight]         = ImVec4(0.28f, 0.72f, 0.68f, 1.00f);
-    c[ImGuiCol_NavWindowingHighlight]= ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
-    c[ImGuiCol_NavWindowingDimBg]    = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
-    c[ImGuiCol_ModalWindowDimBg]     = ImVec4(0.04f, 0.04f, 0.07f, 0.65f);
-    c[ImGuiCol_DragDropTarget]       = ImVec4(0.28f, 0.88f, 0.82f, 0.90f);
+    rebuildKnowledgeIndices();
+    rebuildGraph();
+    m_coreInitialized = true;
+    return true;
 }
 
-static void setupDockLayout(ImGuiID dockspaceId, ImVec2 size) {
-    ImGui::DockBuilderRemoveNode(dockspaceId);
-    ImGui::DockBuilderAddNode(dockspaceId,
-        ImGuiDockNodeFlags_DockSpace | ImGuiDockNodeFlags_NoWindowMenuButton);
-    ImGui::DockBuilderSetNodeSize(dockspaceId, size);
-
-    ImGuiID leftId, centerId, rightId, rightBottomId, centerBottomId;
-
-    ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.18f,
-                                &leftId, &centerId);
-
-    ImGui::DockBuilderSplitNode(centerId, ImGuiDir_Right, 0.37f,
-                                &rightId, &centerId);
-
-    ImGui::DockBuilderSplitNode(rightId, ImGuiDir_Down, 0.40f,
-                                &rightBottomId, &rightId);
-
-    ImGui::DockBuilderSplitNode(centerId, ImGuiDir_Down, 0.30f,
-                                &centerBottomId, &centerId);
-
-    ImGui::DockBuilderDockWindow("Explorador de Notas", leftId);
-    ImGui::DockBuilderDockWindow("Editor de Notas",    centerId);
-    ImGui::DockBuilderDockWindow("Consola Lua",        centerBottomId);
-    ImGui::DockBuilderDockWindow("Motor de Consultas",  centerBottomId);
-    ImGui::DockBuilderDockWindow("Grafo de Nodos",     rightId);
-    ImGui::DockBuilderDockWindow("Backlinks",           rightBottomId);
-    ImGui::DockBuilderDockWindow("Motor de Memoria",    rightBottomId);
-    ImGui::DockBuilderDockWindow("Analisis de Grafo",   rightBottomId);
-    ImGui::DockBuilderDockWindow("Centro de Mando",     leftId);
-    ImGui::DockBuilderDockWindow("Gestor de Plugins",   leftId);
-    ImGui::DockBuilderDockWindow("Repeticion Espaciada", leftId);
-    ImGui::DockBuilderDockWindow("Control de Versiones", leftId);
-    ImGui::DockBuilderDockWindow("Servidor API",         leftId);
-
-    ImGui::DockBuilderFinish(dockspaceId);
+void App::rebuildKnowledgeIndices() {
+    m_outlinerEngine.rebuildFromNotes(m_noteManager);
+    m_taskEngine.rebuildFromNotes(m_noteManager);
+    m_datalogEngine.rebuildIndex(m_noteManager);
+    m_memoryEngine.markDirty();
 }
 
 bool App::init(const char* title, int width, int height) {
-    m_windowWidth  = width;
+    if (!m_coreInitialized) initCore();
+
+    m_windowWidth = width;
     m_windowHeight = height;
 
     glfwSetErrorCallback(glfwErrorCallback);
@@ -241,7 +279,10 @@ bool App::init(const char* title, int width, int height) {
 #endif
 
     m_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
-    if (!m_window) { glfwTerminate(); return false; }
+    if (!m_window) {
+        glfwTerminate();
+        return false;
+    }
     glfwMakeContextCurrent(m_window);
     glfwSwapInterval(1);
 
@@ -251,117 +292,95 @@ bool App::init(const char* title, int width, int height) {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    io.ConfigDockingWithShift          = false;
+    io.ConfigDockingWithShift = false;
     io.ConfigWindowsMoveFromTitleBarOnly = true;
 
-    io.Fonts->AddFontDefault();
-
-    ImGui::StyleColorsDark();
-    applyTheme();
+    UITheme::loadFonts();
+    UITheme::apply(ThemeMode::CarbonDark);
 
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 
-    auto notesDir = std::filesystem::current_path() / "data" / "notas";
-    m_noteManager.setNotesDirectory(notesDir);
-    m_noteManager.scanDirectory();
-
-    if (m_noteManager.getAllNotes().empty()) {
-        auto* welcome = m_noteManager.createNote("Bienvenida");
-        if (welcome) {
-            welcome->content =
-                "# Bienvenida a Node Panda\n\n"
-                "Gestor personal de notas enlazadas, con grafo visual y exportacion de contexto.\n\n"
-                "## Comenzar\n\n"
-                "- Crea notas con el boton **+ Nota** en el explorador izquierdo\n"
-                "- Enlaza notas usando `[[NombreDeLaNota]]`\n"
-                "- Visualiza las conexiones en el **Grafo de Nodos** (panel derecho)\n"
-                "- Exporta contexto con el boton **Exportar Contexto**\n\n"
-                "## Ejemplo\n\n"
-                "Visita [[ProyectoIA]] y [[Ideas]] para ver el grafo en accion.\n";
-            welcome->saveToFile();
-            welcome->parseLinks();
-        }
-
-        auto* proyecto = m_noteManager.createNote("ProyectoIA");
-        if (proyecto) {
-            proyecto->frontmatter["tipo"]    = "proyecto";
-            proyecto->frontmatter["aliases"] = "IA, InteligenciaArtificial";
-            proyecto->frontmatter["tags"]    = "machine-learning, agentes";
-            proyecto->content =
-                "# Proyecto IA\n\n"
-                "Investigacion sobre sistemas multi-agente.\n\n"
-                "Relacionado con [[Ideas]] y [[Bienvenida]].\n";
-            proyecto->saveToFile();
-            proyecto->parseLinks();
-        }
-
-        auto* ideas = m_noteManager.createNote("Ideas");
-        if (ideas) {
-            ideas->frontmatter["tipo"] = "concepto";
-            ideas->content =
-                "# Ideas\n\n"
-                "Banco de ideas para [[ProyectoIA]].\n";
-            ideas->saveToFile();
-            ideas->parseLinks();
-        }
-    }
-
-    m_fileWatcher.start(notesDir);
-
+    m_fileWatcher.start(m_noteManager.getNotesDirectory());
     m_luaManager.init(this);
     m_pluginManager.init(this);
+    m_commandPalette->registerDefaultCommands();
 
-    m_gitManager.init(notesDir);
-
-    m_httpServer.start(this, 8042);
+    int port = 8042;
+    const char* envPort = std::getenv("NODEPANDA_PORT");
+    if (envPort) { try { port = std::stoi(envPort); } catch (...) {} }
+    m_httpServer.start(this, port, "127.0.0.1");
 
     graphNeedsRebuild = true;
+    m_guiInitialized = true;
     return true;
+}
+
+void App::runHeadlessServer(int port) {
+    if (!m_coreInitialized) initCore();
+
+    const char* envHost = std::getenv("NODEPANDA_HOST");
+    std::string bindHost = envHost ? std::string(envHost) : "0.0.0.0";
+
+    g_serverStopSignal = 0;
+    std::signal(SIGINT, handleServerSignal);
+    std::signal(SIGTERM, handleServerSignal);
+
+    m_httpServer.start(this, port, bindHost);
+    std::cout << "Servidor Node Panda activo en http://" << bindHost << ":" << port << "\n";
+    std::cout << "Motor DB: " << m_databaseManager.getStatus().engineName
+              << " (" << m_databaseManager.getStatus().modeName << ")\n";
+    std::cout << "Presiona Ctrl+C para detener.\n";
+
+    while (!g_serverStopSignal && m_httpServer.isRunning()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+
+    m_httpServer.stop();
 }
 
 void App::run() {
     while (!glfwWindowShouldClose(m_window)) {
         m_perfMetrics.beginFrame();
         glfwPollEvents();
-
         processFileWatcherEvents();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_K, false)) {
+            if (m_commandPalette->isOpen()) m_commandPalette->close();
+            else m_commandPalette->open();
+        }
+
         if (currentState == AppState::HUB_BIENVENIDA) {
-
             renderHubBienvenida();
-
         } else {
-
             ImGuiViewport* viewport = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(viewport->WorkPos);
             ImGui::SetNextWindowSize(viewport->WorkSize);
             ImGui::SetNextWindowViewport(viewport->ID);
 
             constexpr ImGuiWindowFlags kDockFlags =
-                ImGuiWindowFlags_NoDocking        |
-                ImGuiWindowFlags_NoTitleBar        |
-                ImGuiWindowFlags_NoCollapse        |
-                ImGuiWindowFlags_NoResize          |
-                ImGuiWindowFlags_NoMove            |
+                ImGuiWindowFlags_NoDocking |
+                ImGuiWindowFlags_NoTitleBar |
+                ImGuiWindowFlags_NoCollapse |
+                ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoMove |
                 ImGuiWindowFlags_NoBringToFrontOnFocus |
-                ImGuiWindowFlags_NoNavFocus        |
+                ImGuiWindowFlags_NoNavFocus |
                 ImGuiWindowFlags_MenuBar;
 
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(0, 0));
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,   0.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
             ImGui::Begin("##DockSpaceHost", nullptr, kDockFlags);
             ImGui::PopStyleVar(3);
 
             ImGuiID dockId = ImGui::GetID("MainDockSpace");
-            constexpr ImGuiDockNodeFlags kDockspaceFlags =
-                ImGuiDockNodeFlags_PassthruCentralNode;
-
+            constexpr ImGuiDockNodeFlags kDockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
             if (ImGui::DockBuilderGetNode(dockId) == nullptr) {
                 setupDockLayout(dockId, viewport->WorkSize);
             }
@@ -373,20 +392,23 @@ void App::run() {
             if (selectedNoteId != m_prevSelectedNoteId) {
                 m_prevSelectedNoteId = selectedNoteId;
                 graphNeedsRebuild = true;
-
                 if (!selectedNoteId.empty()) {
                     m_pluginManager.callOnNoteOpen(selectedNoteId);
                 }
             }
             if (graphNeedsRebuild) {
                 rebuildGraph();
+                rebuildKnowledgeIndices();
                 graphNeedsRebuild = false;
-                m_memoryEngine.markDirty();
             }
             m_forceLayout.step(m_graph);
 
             m_explorerPanel->render(*this);
             m_editorPanel->render(*this);
+            m_outlinerPanel->render(*this);
+            m_taskPanel->render(*this);
+            m_journalPanel->render(*this);
+            m_whiteboardPanel->render(*this);
             m_graphPanel->render(*this);
             m_backlinksPanel->render(*this);
             m_luaConsole->render(*this);
@@ -398,20 +420,28 @@ void App::run() {
             m_srsPanel->render(*this);
             m_gitPanel->render(*this);
             m_httpPanel->render(*this);
+            m_databasePanel->render(*this);
+            m_assetPanel->render(*this);
+            m_syncPanel->render(*this);
+            m_agentPanel->render(*this);
+            m_labPanel->render(*this);
+            m_commandPalette->render(*this);
 
             m_pluginManager.callOnFrame();
 
             if (m_showDemoWindow) {
                 ImGui::ShowDemoWindow(&m_showDemoWindow);
             }
-
         }
+
+        ui::renderToasts(io.DeltaTime > 0.0f ? io.DeltaTime : 0.016f);
 
         ImGui::Render();
         int displayW, displayH;
         glfwGetFramebufferSize(m_window, &displayW, &displayH);
         glViewport(0, 0, displayW, displayH);
-        glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
+        const auto& bg = UITheme::palette().bgBase;
+        glClearColor(bg.x, bg.y, bg.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(m_window);
@@ -421,58 +451,60 @@ void App::run() {
 
 void App::shutdown() {
     m_httpServer.stop();
-    m_pluginManager.shutdown();
-    m_fileWatcher.stop();
+    m_agentEngine.shutdown();
+    if (m_guiInitialized) {
+        m_pluginManager.shutdown();
+        m_fileWatcher.stop();
+    }
     m_noteManager.saveAllDirty();
-
     if (m_gitManager.isAvailable() && m_gitManager.hasChanges()) {
         m_gitManager.autoCommit("[autosave] Cierre de Node Panda");
     }
-    m_imageCache.clear();
-    m_textureManager.clear();
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-
-    glfwDestroyWindow(m_window);
-    glfwTerminate();
+    if (m_guiInitialized) {
+        m_imageCache.clear();
+        m_textureManager.clear();
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+        glfwDestroyWindow(m_window);
+        glfwTerminate();
+        m_guiInitialized = false;
+    }
 }
 
 void App::renderMenuBar() {
     if (!ImGui::BeginMenuBar()) return;
+    const auto& pal = UITheme::palette();
 
     if (ImGui::BeginMenu("Archivo")) {
         if (ImGui::MenuItem("Guardar Todo", "Ctrl+S")) {
             m_noteManager.saveAllDirty();
+            rebuildKnowledgeIndices();
+            ui::pushToast("Notas guardadas", "success");
         }
-        if (ImGui::MenuItem("Reescanear Notas")) {
+        if (ImGui::MenuItem("Diario de Hoy")) {
+            selectedNoteId = m_journalEngine.ensureTodayJournal(m_noteManager);
+            graphNeedsRebuild = true;
+        }
+        if (ImGui::MenuItem("Reescanear Boveda")) {
             m_noteManager.scanDirectory();
             graphNeedsRebuild = true;
         }
         ImGui::Separator();
-        if (ImGui::MenuItem("Exportar Boveda para Claude")) {
+        if (ImGui::MenuItem("Exportar Contexto XML")) {
             auto res = ExportVaultForClaude(m_noteManager);
             m_exportSuccess = res.success;
             if (res.success) {
                 char buf[512];
-                std::snprintf(buf, sizeof(buf),
-                    "%d notas exportadas en formato XML.\n"
-                    "Tamano: %.1f KB\n"
-                    "Archivo: %s",
-                    res.noteCount,
-                    (float)res.totalBytes / 1024.0f,
-                    res.outputPath.c_str());
+                std::snprintf(buf, sizeof(buf), "%d notas exportadas (%.1f KB) en %s",
+                              res.noteCount, static_cast<float>(res.totalBytes) / 1024.0f,
+                              res.outputPath.c_str());
                 m_exportResultMsg = buf;
             } else {
                 m_exportResultMsg = "Error: " + res.error;
             }
             m_showExportResult = true;
         }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Exportar TODAS las notas en formato XML\n"
-                              "optimizado para el LLM Claude.\n"
-                              "Se guarda en claude_context_export.txt");
         ImGui::Separator();
         if (ImGui::MenuItem("Salir", "Alt+F4")) {
             glfwSetWindowShouldClose(m_window, true);
@@ -481,22 +513,42 @@ void App::renderMenuBar() {
     }
 
     if (ImGui::BeginMenu("Vista")) {
-        ImGui::MenuItem("Demo ImGui", nullptr, &m_showDemoWindow);
+        if (ImGui::MenuItem("Paleta de Comandos", "Ctrl+K")) {
+            m_commandPalette->open();
+        }
+        ImGui::Separator();
+        bool isDark = (UITheme::currentMode() == ThemeMode::CarbonDark);
+        if (ImGui::MenuItem(isDark ? "Cambiar a Tema Claro" : "Cambiar a Tema Oscuro")) {
+            UITheme::apply(isDark ? ThemeMode::PaperLight : ThemeMode::CarbonDark);
+        }
+        if (ImGui::MenuItem("Volver al Inicio")) {
+            currentState = AppState::HUB_BIENVENIDA;
+        }
         ImGui::EndMenu();
     }
 
     if (ImGui::BeginMenu("Herramientas")) {
+        if (ImGui::MenuItem("Crear Respaldo Ahora")) {
+            auto b = m_backupManager.createBackup(m_noteManager, "", "manual");
+            ui::pushToast("Respaldo creado: " + b.name, "success");
+        }
+        if (ImGui::MenuItem("Sincronizar con Base de Datos")) {
+            std::string summary;
+            bool ok = m_databaseManager.syncNotes(m_noteManager, summary);
+            ui::pushToast(summary, ok ? "success" : "warn");
+        }
         if (ImGui::MenuItem("Guardar Version (Git)")) {
             if (m_gitManager.isAvailable()) {
                 m_noteManager.saveAllDirty();
                 m_gitManager.autoCommit();
+                ui::pushToast("Commit Git creado", "success");
             }
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Recalcular Analiticas del Grafo")) {
             m_graphAnalytics.analyze(m_graph);
         }
-        if (ImGui::MenuItem("Refrescar Cola de Repaso (SRS)")) {
+        if (ImGui::MenuItem("Refrescar Cola SRS")) {
             m_srsEngine.buildQueue(m_noteManager);
         }
         ImGui::Separator();
@@ -509,19 +561,15 @@ void App::renderMenuBar() {
     }
 
     if (ImGui::BeginMenu("Plugins")) {
-
         auto& menuItems = m_pluginManager.getMenuItems();
         if (menuItems.empty()) {
-            ImGui::MenuItem("(sin items de plugins)", nullptr, false, false);
+            ImGui::MenuItem("(sin items)", nullptr, false, false);
         } else {
             for (const auto& item : menuItems) {
                 if (ImGui::MenuItem(item.label.c_str())) {
                     if (item.luaState && item.callbackRef != -1) {
                         lua_rawgeti(item.luaState, LUA_REGISTRYINDEX, item.callbackRef);
                         if (lua_pcall(item.luaState, 0, 0, 0) != LUA_OK) {
-                            const char* err = lua_tostring(item.luaState, -1);
-                            fprintf(stderr, "[Plugin] Error en menu item '%s': %s\n",
-                                    item.label.c_str(), err ? err : "unknown");
                             lua_pop(item.luaState, 1);
                         }
                     }
@@ -537,12 +585,10 @@ void App::renderMenuBar() {
 
     if (ImGui::BeginMenu("Grafo")) {
         ImGui::SetNextItemWidth(140.0f);
-        ImGui::SliderFloat("Gravedad Central",
-                           &m_forceLayout.centralGravity, 0.0001f, 0.01f, "%.4f");
+        ImGui::SliderFloat("Gravedad Central", &m_forceLayout.centralGravity, 0.0001f, 0.01f, "%.4f");
         ImGui::SetNextItemWidth(140.0f);
-        ImGui::SliderFloat("Theta (Barnes-Hut)",
-                           &m_forceLayout.barnesHutTheta, 0.0f, 1.5f);
-        ImGui::Checkbox("Activar Barnes-Hut", &m_forceLayout.useBarnesHut);
+        ImGui::SliderFloat("Theta (Barnes-Hut)", &m_forceLayout.barnesHutTheta, 0.0f, 1.5f);
+        ImGui::Checkbox("Barnes-Hut", &m_forceLayout.useBarnesHut);
         if (ImGui::MenuItem("Reiniciar Posiciones")) {
             m_forceLayout.reset();
             m_forceLayout.initialize(m_graph, 800.0f, 600.0f);
@@ -550,58 +596,45 @@ void App::renderMenuBar() {
         ImGui::EndMenu();
     }
 
-    const char* watcherState = m_fileWatcher.isRunning() ? "ON" : "OFF";
-    ImVec4 watcherColor = m_fileWatcher.isRunning()
-        ? ImVec4(0.28f, 0.85f, 0.70f, 1.0f)
-        : ImVec4(0.80f, 0.35f, 0.30f, 1.0f);
-
     float currentFps = m_perfMetrics.fps();
-    ImVec4 fpsColor = (currentFps >= 60.0f) ? ImVec4(0.30f, 0.88f, 0.55f, 1.0f)
-                    : (currentFps >= 30.0f) ? ImVec4(0.90f, 0.80f, 0.25f, 1.0f)
-                    :                         ImVec4(0.90f, 0.35f, 0.30f, 1.0f);
+    ImVec4 fpsColor = (currentFps >= 55.0f) ? pal.success : (currentFps >= 30.0f) ? pal.warning : pal.danger;
 
-    float statusWidth = 580.0f;
-    ImGui::SameLine(ImGui::GetWindowWidth() - statusWidth);
-
-    ImGui::TextColored(fpsColor, "%.0f FPS", currentFps);
-    ImGui::SameLine();
-    ImGui::TextColored(ImVec4(0.45f, 0.46f, 0.58f, 1.0f),
-        "(%.1fms)  |  %.1f MB  |  Notas: %d  |  Nodos: %d  |  Watcher:",
-        m_perfMetrics.frameTimeMs(),
-        m_perfMetrics.memoryMB(),
-        (int)m_noteManager.getAllNotes().size(),
-        (int)m_graph.getNodes().size());
-    ImGui::SameLine();
-    ImGui::TextColored(watcherColor, "%s", watcherState);
+    float rightSectionWidth = 560.0f;
+    float avail = ImGui::GetWindowWidth();
+    if (avail > rightSectionWidth + 320.0f) {
+        ImGui::SameLine(avail - rightSectionWidth);
+        ImGui::TextColored(fpsColor, "%.0f FPS", currentFps);
+        ImGui::SameLine(0.0f, 10.0f);
+        ImGui::TextColored(pal.textMuted, "%.1f MB | %d notas | %d bloques | %d tareas | DB:%s",
+                           m_perfMetrics.memoryMB(),
+                           static_cast<int>(m_noteManager.getAllNotes().size()),
+                           static_cast<int>(m_outlinerEngine.getAllBlocks().size()),
+                           static_cast<int>(m_taskEngine.getTasks().size()),
+                           m_databaseManager.getStatus().engineName.c_str());
+    }
 
     ImGui::EndMenuBar();
 
     if (m_showExportResult) ImGui::OpenPopup("Resultado Exportacion");
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    if (ImGui::BeginPopupModal("Resultado Exportacion", &m_showExportResult,
-                               ImGuiWindowFlags_AlwaysAutoResize)) {
-        if (m_exportSuccess) {
-            ImGui::TextColored(ImVec4(0.28f, 0.92f, 0.65f, 1.0f),
-                               "Exportacion completada");
-        } else {
-            ImGui::TextColored(ImVec4(0.95f, 0.40f, 0.30f, 1.0f),
-                               "Error en la exportacion");
-        }
+    if (ImGui::BeginPopupModal("Resultado Exportacion", &m_showExportResult, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextColored(m_exportSuccess ? pal.success : pal.danger,
+                           m_exportSuccess ? "Exportacion completada" : "Error en la exportacion");
         ImGui::Spacing();
-        ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
         ImGui::Separator();
-        ImGui::PopStyleColor();
         ImGui::Spacing();
         ImGui::TextWrapped("%s", m_exportResultMsg.c_str());
         ImGui::Spacing();
-        if (ImGui::Button("  Cerrar  ", ImVec2(120, 0))) {
+        if (ui::primaryButton("Cerrar", ImVec2(120, 0))) {
             m_showExportResult = false;
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
     }
 }
+
+void App::renderActivityRail() {}
 
 void App::rebuildGraph() {
     std::unordered_map<std::string, std::vector<std::string>> allLinks;
@@ -626,7 +659,6 @@ void App::rebuildGraph() {
                 adj[target].push_back(id);
             }
         }
-
         std::unordered_set<std::string> visited;
         std::vector<std::string> queue;
         queue.push_back(selectedNoteId);
@@ -642,22 +674,18 @@ void App::rebuildGraph() {
                 }
             }
         }
-
         std::unordered_map<std::string, std::vector<std::string>> filteredLinks;
         std::unordered_map<std::string, std::string> filteredTypes;
         for (const auto& nodeId : visited) {
             if (allLinks.count(nodeId)) {
                 std::vector<std::string> filtered;
                 for (const auto& target : allLinks.at(nodeId)) {
-                    if (visited.count(target))
-                        filtered.push_back(target);
+                    if (visited.count(target)) filtered.push_back(target);
                 }
                 filteredLinks[nodeId] = std::move(filtered);
             }
-            if (allTypes.count(nodeId))
-                filteredTypes[nodeId] = allTypes.at(nodeId);
+            if (allTypes.count(nodeId)) filteredTypes[nodeId] = allTypes.at(nodeId);
         }
-
         m_graph.buildFromNotes(filteredLinks, filteredTypes);
     } else {
         m_graph.buildFromNotes(allLinks, allTypes);
@@ -672,7 +700,6 @@ void App::processFileWatcherEvents() {
     if (changes.empty()) return;
 
     bool needsRebuild = false;
-
     for (const auto& change : changes) {
         switch (change.event) {
             case FileEvent::Modified:
@@ -689,13 +716,11 @@ void App::processFileWatcherEvents() {
                 needsRebuild = true;
                 break;
             case FileEvent::Overflow:
-                fprintf(stderr, "[App] FileWatcher overflow — rescan completo\n");
                 m_noteManager.scanDirectory();
                 needsRebuild = true;
                 break;
         }
     }
-
     if (needsRebuild) graphNeedsRebuild = true;
 }
 
@@ -704,33 +729,27 @@ void App::importFileToNotes(const std::string& srcPath) {
     fs::path src(srcPath);
     if (!fs::exists(src)) return;
 
-    std::string stem     = src.stem().string();
+    std::string stem = src.stem().string();
     std::string destName = stem + ".md";
-    fs::path    dest     = m_noteManager.getNotesDirectory() / destName;
+    fs::path dest = m_noteManager.getNotesDirectory() / destName;
 
     int suffix = 1;
     while (fs::exists(dest)) {
         destName = stem + "_" + std::to_string(suffix++) + ".md";
-        dest     = m_noteManager.getNotesDirectory() / destName;
+        dest = m_noteManager.getNotesDirectory() / destName;
     }
 
     std::error_code ec;
     fs::copy_file(src, dest, ec);
-    if (ec) {
-        fprintf(stderr, "[App] Error importando '%s': %s\n",
-                srcPath.c_str(), ec.message().c_str());
-        return;
-    }
+    if (ec) return;
 
     m_noteManager.scanDirectory();
     graphNeedsRebuild = true;
-
     selectedNoteId = fs::path(destName).stem().string();
-    fprintf(stderr, "[App] Archivo importado: %s → %s\n",
-            srcPath.c_str(), dest.string().c_str());
 }
 
 void App::renderHubBienvenida() {
+    const auto& pal = UITheme::palette();
 
     if (!m_hubPandaLoaded) {
         m_hubPandaLoaded = true;
@@ -739,8 +758,9 @@ void App::renderHubBienvenida() {
         fs::path p2 = fs::current_path() / "data" / "panda.png";
         std::string pandaPath = fs::exists(p1) ? p1.string() : p2.string();
         const TextureInfo* tex = m_textureManager.getTexture(pandaPath);
-        if (tex && tex->textureId != 0)
+        if (tex && tex->textureId != 0) {
             m_hubPandaTexId = static_cast<unsigned int>(tex->textureId);
+        }
     }
 
     ImGuiViewport* vp = ImGui::GetMainViewport();
@@ -749,229 +769,119 @@ void App::renderHubBienvenida() {
     ImGui::SetNextWindowViewport(vp->ID);
 
     constexpr ImGuiWindowFlags kHubFlags =
-        ImGuiWindowFlags_NoDocking             |
-        ImGuiWindowFlags_NoTitleBar            |
-        ImGuiWindowFlags_NoCollapse            |
-        ImGuiWindowFlags_NoResize              |
-        ImGuiWindowFlags_NoMove                |
+        ImGuiWindowFlags_NoDocking |
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoBringToFrontOnFocus |
-        ImGuiWindowFlags_NoNavFocus            |
-        ImGuiWindowFlags_NoScrollbar           |
-        ImGuiWindowFlags_NoScrollWithMouse;
+        ImGuiWindowFlags_NoNavFocus;
 
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.06f, 0.06f, 0.09f, 1.0f));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, pal.bgBase);
     ImGui::Begin("##HubBienvenida", nullptr, kHubFlags);
-    ImGui::PopStyleVar();
     ImGui::PopStyleColor();
 
-    const float winW = ImGui::GetContentRegionAvail().x;
-    const float winH = ImGui::GetContentRegionAvail().y;
+    float winW = ImGui::GetContentRegionAvail().x;
+    float winH = ImGui::GetContentRegionAvail().y;
+    float cardW = 540.0f;
+    float startX = (winW - cardW) * 0.5f;
+    float startY = std::max(40.0f, (winH - 420.0f) * 0.5f);
 
-    constexpr float IMG_SIZE = 128.0f;
-    constexpr float TOTAL_H  =
-          IMG_SIZE + 24.0f
-        + 16.0f  +  8.0f
-        + 16.0f  + 28.0f
-        + 21.0f
-        + 16.0f  + 22.0f
-        + 38.0f  + 16.0f
-        + 21.0f
-        + 44.0f;
+    ImGui::SetCursorPos(ImVec2(startX, startY));
+    if (ui::beginCard("##hub_main_card", ImVec2(cardW, 0))) {
+        if (m_hubPandaTexId != 0) {
+            float imgSize = 92.0f;
+            ImGui::SetCursorPosX((cardW - imgSize) * 0.5f);
+            ImGui::Image(reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(m_hubPandaTexId)),
+                         ImVec2(imgSize, imgSize));
+            ImGui::Spacing();
+        }
 
-    float cy = (winH - TOTAL_H) * 0.5f;
-    if (cy < 20.0f) cy = 20.0f;
+        if (UITheme::fontHeading()) ImGui::PushFont(UITheme::fontHeading());
+        std::string titleStr = "Node Panda";
+        float tw = ImGui::CalcTextSize(titleStr.c_str()).x;
+        ImGui::SetCursorPosX((cardW - tw) * 0.5f);
+        ImGui::TextColored(pal.textPrimary, "%s", titleStr.c_str());
+        if (UITheme::fontHeading()) ImGui::PopFont();
 
-    if (m_hubPandaTexId != 0) {
-        ImGui::SetCursorPos(ImVec2((winW - IMG_SIZE) * 0.5f, cy));
-        ImGui::Image(
-            reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(m_hubPandaTexId)),
-            ImVec2(IMG_SIZE, IMG_SIZE));
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Node Panda — tu asistente de notas enlazadas");
-    } else {
-        const char* ph = "[ panda.png ]";
-        ImVec2 phsz = ImGui::CalcTextSize(ph);
-        ImGui::SetCursorPos(ImVec2(
-            (winW - phsz.x) * 0.5f,
-            cy + (IMG_SIZE - phsz.y) * 0.5f));
-        ImGui::TextDisabled("%s", ph);
-    }
-    cy += IMG_SIZE + 24.0f;
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
 
-    {
-        const char* t1 = "BIENVENIDO, USUARIO!";
-        ImVec2 t1sz = ImGui::CalcTextSize(t1);
-        ImGui::SetCursorPos(ImVec2((winW - t1sz.x) * 0.5f, cy));
-        ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f), "%s", t1);
-        cy += t1sz.y + 8.0f;
-    }
+        float colW = (cardW - 48.0f) / 3.0f;
+        ui::metricCard("##hub_m1", "Notas", std::to_string(m_noteManager.getAllNotes().size()), pal.accent, colW);
+        ImGui::SameLine();
+        ui::metricCard("##hub_m2", "Bloques", std::to_string(m_outlinerEngine.getAllBlocks().size()), pal.aqua, colW);
+        ImGui::SameLine();
+        ui::metricCard("##hub_m3", "Tareas", std::to_string(m_taskEngine.getTasks().size()), pal.warning, colW);
 
-    {
-        const char* t2 = "Central de Conocimiento";
-        ImVec2 t2sz = ImGui::CalcTextSize(t2);
-        ImGui::SetCursorPos(ImVec2((winW - t2sz.x) * 0.5f, cy));
-        ImGui::TextColored(ImVec4(0.45f, 0.46f, 0.60f, 1.0f), "%s", t2);
-        cy += t2sz.y + 28.0f;
-    }
+        ImGui::Spacing();
+        if (m_authManager.currentUser()) {
+            ui::statusDot(("Sesion: " + m_authManager.currentUser()->username).c_str(), pal.success, true);
+        } else {
+            ui::statusDot("Sesion local activa", pal.accent, true);
+        }
+        ImGui::SameLine(0.0f, 18.0f);
+        ui::badge(("API :" + std::to_string(m_httpServer.getPort())).c_str(), pal.accentSoft, pal.accent);
+        ImGui::SameLine(0.0f, 8.0f);
+        ui::badge(("DB " + m_databaseManager.getStatus().engineName).c_str(), pal.bgSurface3, pal.textSecondary);
 
-    {
-        constexpr float SEP_W = 340.0f;
-        ImVec2 wpos = ImGui::GetWindowPos();
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        float sx = wpos.x + (winW - SEP_W) * 0.5f;
-        float sy = wpos.y + cy;
-        dl->AddLine(ImVec2(sx, sy), ImVec2(sx + SEP_W, sy),
-                    IM_COL32(40, 44, 68, 200), 1.0f);
-        cy += 21.0f;
-    }
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
 
-    {
-        int  noteCount = (int)m_noteManager.getAllNotes().size();
-        bool watcherOn = m_fileWatcher.isRunning();
-
-        char statBuf[128];
-        snprintf(statBuf, sizeof(statBuf),
-                 "Notas totales: %d     |     Watcher: %s",
-                 noteCount, watcherOn ? "activo" : "inactivo");
-
-        ImVec2 statsz = ImGui::CalcTextSize(statBuf);
-        ImGui::SetCursorPos(ImVec2((winW - statsz.x) * 0.5f, cy));
-        ImGui::TextColored(ImVec4(0.38f, 0.40f, 0.52f, 1.0f), "%s", statBuf);
-        cy += statsz.y + 22.0f;
-    }
-
-    {
-        constexpr float BTN_W   = 190.0f;
-        constexpr float BTN_H   = 38.0f;
-        constexpr float BTN_GAP = 16.0f;
-        float rowW = BTN_W * 2.0f + BTN_GAP;
-        float startX = (winW - rowW) * 0.5f;
-
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
-
-        ImGui::SetCursorPos(ImVec2(startX, cy));
-        ImGui::PushStyleColor(ImGuiCol_Button,
-                              ImVec4(0.10f, 0.28f, 0.18f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                              ImVec4(0.14f, 0.42f, 0.26f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                              ImVec4(0.08f, 0.22f, 0.14f, 1.0f));
-        if (ImGui::Button("  + Crear Nueva Nota  ", ImVec2(BTN_W, BTN_H))) {
+        float halfW = (cardW - 32.0f) * 0.5f;
+        if (ui::subtleButton("+ Nueva Nota", ImVec2(halfW, 38.0f))) {
             std::memset(m_hubNewNoteName, 0, sizeof(m_hubNewNoteName));
             ImGui::OpenPopup("Crear Nueva Nota");
         }
-        ImGui::PopStyleColor(3);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Crear una nota Markdown en blanco");
-
-        ImGui::SetCursorPos(ImVec2(startX + BTN_W + BTN_GAP, cy));
-        ImGui::PushStyleColor(ImGuiCol_Button,
-                              ImVec4(0.14f, 0.18f, 0.34f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                              ImVec4(0.20f, 0.28f, 0.50f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                              ImVec4(0.10f, 0.14f, 0.26f, 1.0f));
-        if (ImGui::Button("  Cargar Archivo (.md/.txt)  ", ImVec2(BTN_W, BTN_H))) {
+        ImGui::SameLine();
+        if (ui::subtleButton("Importar Archivo (.md/.txt)", ImVec2(halfW, 38.0f))) {
             std::string path = openFileDialog();
             if (!path.empty()) {
                 importFileToNotes(path);
                 currentState = AppState::ENTORNO_NOTAS;
             }
         }
-        ImGui::PopStyleColor(3);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Importar un archivo .md o .txt existente\n"
-                              "al directorio de notas");
 
-        ImGui::PopStyleVar();
-        cy += BTN_H + 16.0f;
-    }
-
-    {
-        constexpr float SEP_W = 340.0f;
-        ImVec2 wpos = ImGui::GetWindowPos();
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        float sx = wpos.x + (winW - SEP_W) * 0.5f;
-        float sy = wpos.y + cy;
-        dl->AddLine(ImVec2(sx, sy), ImVec2(sx + SEP_W, sy),
-                    IM_COL32(40, 44, 68, 200), 1.0f);
-        cy += 21.0f;
-    }
-
-    {
-        constexpr float BTN_W = 280.0f;
-        constexpr float BTN_H = 44.0f;
-
-        ImGui::SetCursorPos(ImVec2((winW - BTN_W) * 0.5f, cy));
-
-        ImGui::PushStyleColor(ImGuiCol_Button,
-                              ImVec4(0.08f, 0.38f, 0.42f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                              ImVec4(0.12f, 0.52f, 0.58f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                              ImVec4(0.06f, 0.28f, 0.32f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_Text,
-                              ImVec4(0.90f, 0.95f, 1.00f, 1.0f));
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
-
-        if (ImGui::Button("  ACCEDER A MIS NOTAS  ", ImVec2(BTN_W, BTN_H))) {
+        ImGui::Spacing();
+        if (ui::primaryButton("Abrir Espacio de Trabajo", ImVec2(cardW - 24.0f, 44.0f))) {
             currentState = AppState::ENTORNO_NOTAS;
         }
-
-        ImGui::PopStyleVar();
-        ImGui::PopStyleColor(4);
-
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Entrar al entorno de notas enlazadas");
     }
+    ui::endCard();
 
-    {
-        ImVec2 mc = ImGui::GetMainViewport()->GetCenter();
-        ImGui::SetNextWindowPos(mc, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(420.0f, 0.0f), ImGuiCond_Appearing);
-
-        if (ImGui::BeginPopupModal("Crear Nueva Nota", nullptr,
-                                   ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f),
-                               "Nueva nota en blanco");
-            ImGui::Spacing();
-
-            ImGui::Text("Nombre:");
-            ImGui::SetNextItemWidth(350.0f);
-            bool enterHit = ImGui::InputText(
-                "##new_note_name", m_hubNewNoteName, sizeof(m_hubNewNoteName),
-                ImGuiInputTextFlags_EnterReturnsTrue);
-
-            ImGui::Spacing();
-            ImGui::Spacing();
-
-            bool canCreate = m_hubNewNoteName[0] != '\0';
-
-            if (!canCreate) ImGui::BeginDisabled();
-            if (ImGui::Button("  Crear  ", ImVec2(120.0f, 0.0f)) || (enterHit && canCreate)) {
-                auto* note = m_noteManager.createNote(m_hubNewNoteName);
-                if (note) {
-                    note->content = "# " + std::string(m_hubNewNoteName) + "\n\n";
-                    note->saveToFile();
-                    note->parseLinks();
-                    note->parseTitle();
-                    selectedNoteId    = note->id;
-                    graphNeedsRebuild = true;
-                    currentState      = AppState::ENTORNO_NOTAS;
-                    m_pluginManager.callOnNoteCreate(note->id);
-                }
-                ImGui::CloseCurrentPopup();
+    ImVec2 mc = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(mc, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(420.0f, 0.0f), ImGuiCond_Appearing);
+    if (ImGui::BeginPopupModal("Crear Nueva Nota", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Nombre:");
+        ImGui::SetNextItemWidth(380.0f);
+        bool enterHit = ImGui::InputText("##new_note_name", m_hubNewNoteName, sizeof(m_hubNewNoteName),
+                                         ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::Spacing();
+        bool canCreate = m_hubNewNoteName[0] != '\0';
+        if (!canCreate) ImGui::BeginDisabled();
+        if (ui::primaryButton("Crear", ImVec2(120.0f, 0.0f)) || (enterHit && canCreate)) {
+            auto* note = m_noteManager.createNote(m_hubNewNoteName);
+            if (note) {
+                note->content = "# " + std::string(m_hubNewNoteName) + "\n\n";
+                note->saveToFile();
+                note->parseLinks();
+                note->parseTitle();
+                selectedNoteId = note->id;
+                graphNeedsRebuild = true;
+                currentState = AppState::ENTORNO_NOTAS;
+                m_pluginManager.callOnNoteCreate(note->id);
             }
-            if (!canCreate) ImGui::EndDisabled();
-
-            ImGui::SameLine();
-            if (ImGui::Button("  Cancelar  ", ImVec2(120.0f, 0.0f))) {
-                ImGui::CloseCurrentPopup();
-            }
-
-            ImGui::EndPopup();
+            ImGui::CloseCurrentPopup();
         }
+        if (!canCreate) ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ui::subtleButton("Cancelar", ImVec2(120.0f, 0.0f))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
     }
 
     ImGui::End();
