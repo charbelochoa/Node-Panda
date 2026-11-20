@@ -1,5 +1,3 @@
-
-
 #include "file_watcher.h"
 
 #ifdef _WIN32
@@ -13,10 +11,7 @@
 
 namespace nodepanda {
 
-
-
 #ifdef _WIN32
-
 
 static std::string wideToUtf8(const WCHAR* wide, DWORD byteLength) {
     if (byteLength == 0) return {};
@@ -41,8 +36,7 @@ static std::string wideToUtf8(const WCHAR* wide, DWORD byteLength) {
     return result;
 }
 
-#endif 
-
+#endif
 
 static bool hasMdExtension(const std::string& path) {
     if (path.size() < 3) return false;
@@ -52,24 +46,20 @@ static bool hasMdExtension(const std::string& path) {
             (tail[2] == 'd' || tail[2] == 'D'));
 }
 
-
-
 FileWatcher::FileWatcher() = default;
 
 FileWatcher::~FileWatcher() {
-    stop(); 
+    stop();
 }
-
 
 void FileWatcher::start(const std::filesystem::path& directory) {
     if (m_running.load(std::memory_order_acquire)) {
-        stop(); 
+        stop();
     }
 
     m_directory = directory;
     m_shouldStop.store(false, std::memory_order_release);
 
-    
     {
         std::lock_guard<std::mutex> lock(m_queueMutex);
         std::queue<FileChange> empty;
@@ -83,16 +73,15 @@ void FileWatcher::start(const std::filesystem::path& directory) {
             m_directory.string().c_str());
 }
 
-
 void FileWatcher::stop() {
-    
+
     if (!m_running.load(std::memory_order_acquire) && !m_thread.joinable()) return;
 
     m_shouldStop.store(true, std::memory_order_release);
 
 #ifdef _WIN32
     if (m_directoryHandle && m_directoryHandle != INVALID_HANDLE_VALUE) {
-        
+
         CancelIoEx(static_cast<HANDLE>(m_directoryHandle), nullptr);
     }
 #endif
@@ -112,12 +101,10 @@ void FileWatcher::stop() {
     fprintf(stderr, "[FileWatcher] Detenido.\n");
 }
 
-
 void FileWatcher::enqueueChange(FileChange change) {
     std::lock_guard<std::mutex> lock(m_queueMutex);
     m_changedFiles.push(std::move(change));
 }
-
 
 std::vector<FileChange> FileWatcher::pollChanges() {
     std::queue<FileChange> snapshot;
@@ -148,16 +135,15 @@ std::vector<FileChange> FileWatcher::pollChanges() {
     return result;
 }
 
-
 void FileWatcher::watchThreadFunc() {
 #ifdef _WIN32
     m_directoryHandle = CreateFileW(
         m_directory.wstring().c_str(),
-        FILE_LIST_DIRECTORY,                          
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 
-        nullptr,                                       
+        FILE_LIST_DIRECTORY,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
         OPEN_EXISTING,
-        FILE_FLAG_BACKUP_SEMANTICS,                   
+        FILE_FLAG_BACKUP_SEMANTICS,
         nullptr
     );
 
@@ -168,11 +154,9 @@ void FileWatcher::watchThreadFunc() {
         return;
     }
 
-    
     constexpr DWORD BUFFER_SIZE = 32768;
     alignas(DWORD) BYTE buffer[BUFFER_SIZE];
 
-    
     std::string pendingRenameOld;
 
     while (!m_shouldStop.load(std::memory_order_acquire)) {
@@ -182,14 +166,14 @@ void FileWatcher::watchThreadFunc() {
             static_cast<HANDLE>(m_directoryHandle),
             buffer,
             BUFFER_SIZE,
-            TRUE,          
-            
-            FILE_NOTIFY_CHANGE_FILE_NAME  |  
-            FILE_NOTIFY_CHANGE_LAST_WRITE |  
-            FILE_NOTIFY_CHANGE_CREATION,    
+            TRUE,
+
+            FILE_NOTIFY_CHANGE_FILE_NAME  |
+            FILE_NOTIFY_CHANGE_LAST_WRITE |
+            FILE_NOTIFY_CHANGE_CREATION,
             &bytesReturned,
-            nullptr,       
-            nullptr        
+            nullptr,
+            nullptr
         );
 
         if (m_shouldStop.load(std::memory_order_acquire)) break;
@@ -206,11 +190,10 @@ void FileWatcher::watchThreadFunc() {
         if (bytesReturned == 0) {
             fprintf(stderr, "[FileWatcher] ADVERTENCIA: buffer overflow, rescan necesario.\n");
             enqueueChange({FileEvent::Overflow, "", ""});
-            pendingRenameOld.clear(); 
+            pendingRenameOld.clear();
             continue;
         }
 
-        
         const FILE_NOTIFY_INFORMATION* info =
             reinterpret_cast<const FILE_NOTIFY_INFORMATION*>(buffer);
 
@@ -246,7 +229,7 @@ void FileWatcher::watchThreadFunc() {
                     break;
 
                 case FILE_ACTION_RENAMED_NEW_NAME: {
-                    
+
                     const bool oldIsMd = hasMdExtension(pendingRenameOld);
                     if (isMd || oldIsMd) {
                         enqueueChange({FileEvent::Renamed, pendingRenameOld, filename});
@@ -270,10 +253,10 @@ void FileWatcher::watchThreadFunc() {
     fprintf(stderr, "[FileWatcher] Hilo secundario terminado limpiamente.\n");
 
 #else
-    
+
     fprintf(stderr, "[FileWatcher] ReadDirectoryChangesW no disponible en esta plataforma.\n");
     m_running.store(false, std::memory_order_release);
 #endif
 }
 
-} 
+}
