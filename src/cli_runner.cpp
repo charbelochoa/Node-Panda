@@ -1,5 +1,6 @@
 #include "cli_runner.h"
 #include "app.h"
+#include "mobile_bridge.h"
 
 #include <algorithm>
 #include <chrono>
@@ -31,12 +32,12 @@ bool CliRunner::hasFlag(const std::vector<std::string>& args, const std::string&
 }
 
 void CliRunner::printHelp() const {
-    std::cout << "Node Panda CLI v2.0.0\n\n";
+    std::cout << "Node Panda CLI v2.1.0\n\n";
     std::cout << "Uso: NodePanda [comando] [opciones]\n\n";
     std::cout << "Modos de ejecucion:\n";
     std::cout << "  (sin argumentos)          Autenticacion en terminal y selector GUI / Servidor / Chat\n";
     std::cout << "  --gui                     Iniciar interfaz grafica compilada tras autenticacion\n";
-    std::cout << "  --server [--port 8042]    Iniciar servidor REST y motor de agentes local\n\n";
+    std::cout << "  --server [--port 8042]    Iniciar servidor REST, WebSocket RTC y Companion PWA\n\n";
     std::cout << "Autenticacion:\n";
     std::cout << "  login                     Iniciar sesion interactiva en terminal\n";
     std::cout << "  register                  Registrar nueva cuenta de usuario\n";
@@ -61,7 +62,13 @@ void CliRunner::printHelp() const {
     std::cout << "  query <datalog|--name nombre>           Ejecutar consulta Datalog\n";
     std::cout << "  backup <list|create|restore|remove>     Gestionar respaldos\n";
     std::cout << "  sync <status|checksum|export|import>    Sincronizacion y E2EE\n";
-    std::cout << "  db <status|config|init|sync|query>      Base de datos PostgreSQL / MySQL\n";
+    std::cout << "  db <status|config|init|sync|query>      Base de datos PostgreSQL / MySQL\n\n";
+    std::cout << "Vectores 384D, PDF, Tablas, RTC y Companion Movil:\n";
+    std::cout << "  vector <query> [--k 10]                 Busqueda vectorial hibrida 384D\n";
+    std::cout << "  rtc status                              Estado del servidor WebSocket RTC (RFC 6455)\n";
+    std::cout << "  pdf <demo|open archivo.pdf|list>        Generar o inspeccionar documentos PDF\n";
+    std::cout << "  table list                              Listar vistas de tabla y conteo de filas\n";
+    std::cout << "  mobile [--port 8042]                    Mostrar URL LAN del Companion Movil PWA\n";
     std::cout << "  doctor                                  Diagnostico del entorno\n";
 }
 
@@ -617,13 +624,186 @@ int CliRunner::handleLabCommand(App& app, const std::string& subcmd, const std::
     return 1;
 }
 
+int CliRunner::handleVectorCommand(App& app, const std::vector<std::string>& args) {
+    std::string kStr = getFlag(args, "--k", "");
+    int topK = 10;
+    if (!kStr.empty()) {
+        try { topK = std::stoi(kStr); } catch (...) {}
+    }
+    topK = std::max(1, std::min(100, topK));
+
+    std::string query;
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i] == "--k") {
+            ++i;
+            continue;
+        }
+        if (args[i].rfind("--k=", 0) == 0 || args[i] == "--no-auth-prompt") {
+            continue;
+        }
+        if (args[i].rfind("--", 0) == 0) continue;
+        if (!query.empty()) query.push_back(' ');
+        query += args[i];
+    }
+
+    if (query.empty()) {
+        std::cerr << "Uso: NodePanda vector <consulta> [--k 10]\n";
+        return 1;
+    }
+
+    auto hits = app.getVectorEngine().searchHybrid(query, topK);
+    std::cout << "Busqueda Vectorial Hibrida (" << app.getVectorEngine().dimension()
+              << "D, docs=" << app.getVectorEngine().documentCount() << "): \"" << query << "\"\n";
+    std::cout << std::fixed << std::setprecision(4);
+    for (size_t i = 0; i < hits.size(); ++i) {
+        const auto& h = hits[i];
+        std::cout << "  " << (i + 1) << ". [" << h.kind << "] "
+                  << (h.title.empty() ? h.pageId : h.title)
+                  << " | hybrid=" << h.hybridScore
+                  << " vector=" << h.vectorScore
+                  << " keyword=" << h.keywordScore << "\n";
+        if (!h.snippet.empty()) {
+            std::cout << "     " << h.snippet << "\n";
+        }
+    }
+    std::cout << "Count: " << hits.size() << "\n";
+    return 0;
+}
+
+int CliRunner::handleRtcCommand(App& app, const std::vector<std::string>& args) {
+    std::string sub = args.size() > 1 ? args[1] : "status";
+    if (sub != "status") {
+        std::cerr << "Uso: NodePanda rtc status\n";
+        return 1;
+    }
+    auto& rtc = app.getWebSocketRtcServer();
+    auto st = rtc.stats();
+    std::cout << "WebSocket RTC (RFC 6455)\n";
+    std::cout << "  Estado: " << (st.serverRunning ? "activo" : "detenido") << "\n";
+    std::cout << "  Direccion: ws:" << "/" << "/" << rtc.getBindHost() << ":" << st.port << "\n";
+    std::cout << "  Puerto RFC 6455: " << st.port << "\n";
+    std::cout << "  Peers conectados: " << st.connectedPeers << "\n";
+    std::cout << "  Mensajes enviados: " << st.messagesSent << "\n";
+    std::cout << "  Mensajes recibidos: " << st.messagesReceived << "\n";
+    std::cout << "  Revision actual: " << st.currentRev << "\n";
+    return 0;
+}
+
+int CliRunner::handlePdfCommand(App& app, const std::vector<std::string>& args) {
+    std::string sub = args.size() > 1 ? args[1] : "list";
+    auto& pdf = app.getPdfEngine();
+
+    if (sub == "demo") {
+        std::filesystem::path baseDir = pdf.dataDir().empty() ? std::filesystem::path("data") : pdf.dataDir();
+        std::filesystem::path demoPath = baseDir / "assets" / "demo_nodepanda.pdf";
+        std::vector<std::string> paragraphs = {
+            "Arquitectura de conocimiento en grafos locales y anotacion visual de documentos PDF.",
+            "Node Panda v2.1 integra notas Markdown, outliner por bloques, busqueda vectorial 384D y anotaciones PDF persistentes.",
+            "Cada documento abierto calcula su huella SHA-256 para guardar resaltados y comentarios en formato TSV."
+        };
+        if (!pdf.createSamplePdf(demoPath, "Guia de Anotacion Visual PDF", paragraphs)) {
+            std::cerr << "Error generando PDF de demostracion.\n";
+            return 1;
+        }
+        std::string err;
+        if (!pdf.openPdf(demoPath, err)) {
+            std::cerr << "Error abriendo PDF generado: " << err << "\n";
+            return 1;
+        }
+        const auto* doc = pdf.activeDocument();
+        std::cout << "PDF demo generado: " << demoPath.string() << "\n";
+        if (doc) {
+            std::cout << "  Titulo: " << doc->title << "\n";
+            std::cout << "  Paginas: " << doc->pages.size() << "\n";
+            std::cout << "  Resaltados: " << doc->highlights.size() << "\n";
+            std::cout << "  SHA-256: " << doc->sha256.substr(0, 16) << "\n";
+        }
+        return 0;
+    }
+
+    if (sub == "open") {
+        if (args.size() < 3) {
+            std::cerr << "Uso: NodePanda pdf open <archivo.pdf>\n";
+            return 1;
+        }
+        std::string err;
+        if (!pdf.openPdf(std::filesystem::path(args[2]), err)) {
+            std::cerr << "Error abriendo PDF: " << err << "\n";
+            return 1;
+        }
+        const auto* doc = pdf.activeDocument();
+        if (doc) {
+            std::cout << "Documento PDF: " << doc->title << "\n";
+            std::cout << "  Archivo: " << doc->filePath.string() << "\n";
+            std::cout << "  SHA-256: " << doc->sha256.substr(0, 16) << "\n";
+            std::cout << "  Paginas: " << doc->pages.size() << "\n";
+            std::cout << "  Resaltados: " << doc->highlights.size() << "\n";
+            for (const auto& page : doc->pages) {
+                std::cout << "  - Pagina " << page.pageNumber << ": " << page.textLines.size() << " lineas\n";
+            }
+            for (const auto& hl : doc->highlights) {
+                std::cout << "  * [Pag " << (hl.pageIndex + 1) << "] " << hl.quotedText << "\n";
+            }
+        }
+        return 0;
+    }
+
+    if (sub == "list") {
+        const auto& docs = pdf.documents();
+        for (const auto& d : docs) {
+            std::cout << d.id << "\t" << d.title << "\t" << d.pages.size()
+                      << " pags\t" << d.highlights.size() << " resaltados\n";
+        }
+        std::cout << "Count: " << docs.size() << "\n";
+        return 0;
+    }
+
+    std::cerr << "Uso: NodePanda pdf <demo|open archivo.pdf|list>\n";
+    return 1;
+}
+
+int CliRunner::handleTableCommand(App& app, const std::vector<std::string>& args) {
+    std::string sub = args.size() > 1 ? args[1] : "list";
+    if (sub != "list") {
+        std::cerr << "Uso: NodePanda table list\n";
+        return 1;
+    }
+    const auto& views = app.getTableViewEngine().views();
+    std::cout << "ID\tNOMBRE\tCOLUMNAS\tFILAS\n";
+    for (const auto& v : views) {
+        auto rows = app.getTableViewEngine().queryRows(app.getNoteManager(), v);
+        std::cout << v.id << "\t" << v.name << "\t" << v.columns.size() << "\t" << rows.size() << "\n";
+    }
+    std::cout << "Count: " << views.size() << "\n";
+    return 0;
+}
+
+int CliRunner::handleMobileCommand(App& app, const std::vector<std::string>& args, int defaultPort) {
+    (void)app;
+    int port = defaultPort;
+    std::string pStr = getFlag(args, "--port", "");
+    if (!pStr.empty()) {
+        try { port = std::stoi(pStr); } catch (...) {}
+    }
+    std::cout << "Companion Movil PWA URL: " << MobileBridge::getLocalLanHint(port) << "\n";
+    std::cout << "Inicia el servidor con: NodePanda --server --port " << port << "\n";
+    return 0;
+}
+
 int CliRunner::handleDoctorCommand(App& app) {
-    std::cout << "Diagnostico Node Panda v2.0.0\n";
+    auto rtcStats = app.getWebSocketRtcServer().stats();
+    std::cout << "Diagnostico Node Panda v2.1.0\n";
     std::cout << "  Notas cargadas: " << app.getNoteManager().getAllNotes().size() << "\n";
     std::cout << "  Bloques indexados: " << app.getOutlinerEngine().getAllBlocks().size() << "\n";
     std::cout << "  Tareas activas: " << app.getTaskEngine().getTasks().size() << "\n";
     std::cout << "  Datoms en memoria: " << app.getDatalogEngine().datomCount() << "\n";
     std::cout << "  Skills cargadas: " << app.getSkillManager().getSkills().size() << "\n";
+    std::cout << "  Vectores 384D: " << app.getVectorEngine().documentCount()
+              << " (" << app.getVectorEngine().dimension() << "D)\n";
+    std::cout << "  Vistas de Tabla: " << app.getTableViewEngine().views().size() << "\n";
+    std::cout << "  Documentos PDF: " << app.getPdfEngine().documents().size() << "\n";
+    std::cout << "  WebSocket RTC: " << (rtcStats.serverRunning ? "activo" : "detenido")
+              << " (puerto " << rtcStats.port << ", peers=" << rtcStats.connectedPeers << ")\n";
     std::string dbDetails;
     bool dbOk = app.getDatabaseManager().testConnection(dbDetails);
     std::cout << "  Base de datos: " << (dbOk ? "OK" : "ADVERTENCIA") << " (" << dbDetails << ")\n";
@@ -668,7 +848,7 @@ CliLaunchResult CliRunner::run(int argc, char** argv, App& app) {
         return result;
     }
     if (hasFlag(args, "--version") || hasFlag(args, "-v")) {
-        std::cout << "Node Panda 2.0.0\n";
+        std::cout << "Node Panda 2.1.0\n";
         result.mode = LaunchMode::CliFinished;
         return result;
     }
@@ -797,6 +977,16 @@ CliLaunchResult CliRunner::run(int argc, char** argv, App& app) {
         result.exitCode = handleSyncCommand(app, args);
     } else if (cmd == "backup") {
         result.exitCode = handleBackupCommand(app, args);
+    } else if (cmd == "vector") {
+        result.exitCode = handleVectorCommand(app, args);
+    } else if (cmd == "rtc") {
+        result.exitCode = handleRtcCommand(app, args);
+    } else if (cmd == "pdf") {
+        result.exitCode = handlePdfCommand(app, args);
+    } else if (cmd == "table") {
+        result.exitCode = handleTableCommand(app, args);
+    } else if (cmd == "mobile") {
+        result.exitCode = handleMobileCommand(app, args, result.serverPort);
     } else {
         std::cerr << "Comando desconocido: " << cmd << "\n";
         printHelp();
