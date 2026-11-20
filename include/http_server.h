@@ -37,6 +37,10 @@ private:
     std::string buildJsonSkills();
     std::string buildJsonDbStatus();
     std::string buildJsonSyncStatus();
+    std::string buildJsonVectorSearch(const std::string& query, int topK);
+    std::string buildJsonRtcStatus();
+    std::string buildJsonPdfs();
+    std::string buildJsonTables();
     std::string handleAuthLogin(const std::string& body);
     std::string handleAuthRegister(const std::string& body);
     std::string handleCreateRun(const std::string& body);
