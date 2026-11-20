@@ -431,3 +431,30 @@ end
 | `auto_linker`     | Sugiere links basados en similitud TF-IDF              |
 | `graph_exporter`  | Exporta grafo a DOT (Graphviz) y JSON                  |
 | `theme_switcher`  | 5 temas de colores: Default, Nord, Catppuccin, Gruvbox, Dracula |
+| `ai_assistant`    | Lanzador de misiones IA y panel de estado de agentes   |
+| `outliner_tools`  | Operaciones rápidas sobre bloques jerárquicos          |
+| `task_radar`      | Monitor de tareas pendientes y vencidas                |
+| `db_monitor`      | Estado y sincronización rápida con PostgreSQL / MySQL  |
+
+---
+
+## APIs Adicionales v2.0
+
+### `bloques`
+- `bloques.contar() -> number`
+- `bloques.crear(page_id, contenido) -> string`
+
+### `tareas`
+- `tareas.contar() -> number`
+- `tareas.pendientes() -> number`
+- `tareas.vencidas() -> number`
+- `tareas.crear(page_id, titulo) -> string`
+
+### `agentes`
+- `agentes.misiones() -> number`
+- `agentes.ejecutar(prompt [, model]) -> string`
+
+### `db`
+- `db.motor() -> string`
+- `db.conectado() -> boolean`
+- `db.sincronizar() -> string`
