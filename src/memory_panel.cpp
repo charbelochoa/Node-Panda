@@ -1,7 +1,3 @@
-// ============================================================================
-// MemoryPanel — Panel de Memoria Semántica (UI)
-// ============================================================================
-
 #include "memory_panel.h"
 #include "app.h"
 #include "memory_engine.h"
@@ -12,25 +8,22 @@
 
 namespace nodepanda {
 
-// ============================================================================
-// Helper: renderizar una barra de relevancia visual
-// ============================================================================
 static void renderScoreBar(float score) {
-    // Barra horizontal proporcional al score
+
     ImVec2 pos = ImGui::GetCursorScreenPos();
     float barW = 60.0f * score;
     float barH = 4.0f;
     ImU32 col;
     if (score > 0.6f)
-        col = IM_COL32(72, 224, 210, 255);  // cyan fuerte
+        col = IM_COL32(72, 224, 210, 255);
     else if (score > 0.3f)
-        col = IM_COL32(200, 200, 80, 255);  // amarillo
+        col = IM_COL32(200, 200, 80, 255);
     else
-        col = IM_COL32(100, 110, 140, 200);  // gris suave
+        col = IM_COL32(100, 110, 140, 200);
 
     ImGui::GetWindowDrawList()->AddRectFilled(
         pos, ImVec2(pos.x + barW, pos.y + barH), col, 2.0f);
-    // Fondo de la barra
+
     ImGui::GetWindowDrawList()->AddRectFilled(
         ImVec2(pos.x + barW, pos.y),
         ImVec2(pos.x + 60.0f, pos.y + barH),
@@ -38,14 +31,10 @@ static void renderScoreBar(float score) {
     ImGui::Dummy(ImVec2(60.0f, barH + 2.0f));
 }
 
-// ============================================================================
-// Helper: renderizar un resultado clickeable
-// ============================================================================
 static bool renderResult(const MemoryResult& r, int idx) {
     ImGui::PushID(idx);
     bool clicked = false;
 
-    // Score como porcentaje
     char scoreBuf[16];
     std::snprintf(scoreBuf, sizeof(scoreBuf), "%.0f%%", r.score * 100.0f);
 
@@ -63,7 +52,6 @@ static bool renderResult(const MemoryResult& r, int idx) {
         ImGui::EndTooltip();
     }
 
-    // Barra de score en la misma línea
     ImGui::SameLine(ImGui::GetContentRegionAvail().x - 64.0f);
     ImGui::TextColored(ImVec4(0.45f, 0.47f, 0.58f, 1.0f), "%s", scoreBuf);
 
@@ -71,9 +59,6 @@ static bool renderResult(const MemoryResult& r, int idx) {
     return clicked;
 }
 
-// ============================================================================
-// render — Renderizar el panel completo
-// ============================================================================
 void MemoryPanel::render(App& app) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 8.0f));
     ImGui::Begin("Motor de Memoria", nullptr, ImGuiWindowFlags_NoCollapse);
@@ -81,12 +66,10 @@ void MemoryPanel::render(App& app) {
 
     auto& memory = app.getMemoryEngine();
 
-    // ── Re-indexar si es necesario ──────────────────────────────────────────
     if (memory.needsReindex()) {
         memory.reindex(app.getNoteManager());
     }
 
-    // ── Encabezado con estadísticas ─────────────────────────────────────────
     ImGui::TextColored(ImVec4(0.28f, 0.88f, 0.82f, 1.0f), "Motor de Memoria");
     ImGui::SameLine();
     ImGui::TextColored(ImVec4(0.35f, 0.37f, 0.48f, 1.0f),
@@ -99,9 +82,6 @@ void MemoryPanel::render(App& app) {
     ImGui::PopStyleColor();
     ImGui::Spacing();
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // SECCIÓN 1: Búsqueda Semántica
-    // ═══════════════════════════════════════════════════════════════════════════
     ImGui::TextColored(ImVec4(0.75f, 0.78f, 0.45f, 1.0f), "Busqueda Semantica");
     ImGui::Spacing();
 
@@ -144,9 +124,6 @@ void MemoryPanel::render(App& app) {
     ImGui::PopStyleColor();
     ImGui::Spacing();
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // SECCIÓN 2: Notas Relacionadas (a la nota seleccionada)
-    // ═══════════════════════════════════════════════════════════════════════════
     if (app.selectedNoteId.empty()) {
         ImGui::TextColored(ImVec4(0.35f, 0.36f, 0.46f, 1.0f),
                            "Selecciona una nota para ver relaciones");
@@ -175,9 +152,6 @@ void MemoryPanel::render(App& app) {
     ImGui::PopStyleColor();
     ImGui::Spacing();
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // SECCIÓN 3: Sugerencias de Enlace
-    // ═══════════════════════════════════════════════════════════════════════════
     ImGui::TextColored(ImVec4(0.75f, 0.78f, 0.45f, 1.0f), "Sugerencias de Enlace");
     ImGui::SameLine();
     ImGui::TextColored(ImVec4(0.40f, 0.42f, 0.52f, 1.0f), "(no enlazadas aun)");
@@ -196,14 +170,13 @@ void MemoryPanel::render(App& app) {
                 ImGui::PushID(3000 + i);
                 const auto& s = suggestions[i];
 
-                // Botón para insertar enlace
                 ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.15f, 0.25f, 0.40f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered,  ImVec4(0.20f, 0.35f, 0.55f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonActive,   ImVec4(0.12f, 0.20f, 0.32f, 1.0f));
                 char linkBtn[32];
                 std::snprintf(linkBtn, sizeof(linkBtn), " + ");
                 if (ImGui::SmallButton(linkBtn)) {
-                    // Insertar [[enlace]] al final del contenido
+
                     if (currentNote) {
                         currentNote->content += "\n[[" + s.noteId + "]]";
                         currentNote->dirty = true;
@@ -226,7 +199,6 @@ void MemoryPanel::render(App& app) {
         }
     }
 
-    // ── Botón de re-indexar manual ──────────────────────────────────────────
     ImGui::Spacing();
     ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.15f, 0.17f, 0.25f, 0.80f));
     ImGui::Separator();
@@ -246,4 +218,4 @@ void MemoryPanel::render(App& app) {
     ImGui::End();
 }
 
-} // namespace nodepanda
+}
