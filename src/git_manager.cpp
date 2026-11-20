@@ -46,7 +46,6 @@ std::string GitManager::runGitCommand(const std::string& args) const {
 bool GitManager::init(const std::filesystem::path& notesDir) {
     m_notesDir = notesDir;
 
-    // Check if git is available
     std::string versionOutput = runGitCommand("--version");
     if (versionOutput.empty() || versionOutput.find("git version") == std::string::npos) {
         m_available = false;
@@ -55,23 +54,19 @@ bool GitManager::init(const std::filesystem::path& notesDir) {
 
     m_available = true;
 
-    // Check if .git directory exists
     std::filesystem::path gitDir = m_notesDir / ".git";
     if (std::filesystem::exists(gitDir)) {
         return true;
     }
 
-    // Initialize new repo
     std::string initOutput = runGitCommand("init");
     if (initOutput.empty()) {
         return false;
     }
 
-    // Set git config
     runGitCommand("config user.email \"nodepanda@local\"");
     runGitCommand("config user.name \"Node Panda\"");
 
-    // Create initial commit
     runGitCommand("add -A");
     std::string commitOutput = runGitCommand("commit -m \"Initial commit\"");
 
@@ -83,10 +78,8 @@ bool GitManager::autoCommit(const std::string& message) {
         return false;
     }
 
-    // Add all changes
     runGitCommand("add -A");
 
-    // Create commit message
     std::string commitMsg = message;
     if (commitMsg.empty()) {
         auto now = std::chrono::system_clock::now();
@@ -97,7 +90,6 @@ bool GitManager::autoCommit(const std::string& message) {
         commitMsg = std::string("Auto-commit: ") + buffer;
     }
 
-    // Escape quotes in message
     size_t pos = 0;
     while ((pos = commitMsg.find('"', pos)) != std::string::npos) {
         commitMsg.replace(pos, 1, "\\\"");
@@ -113,7 +105,6 @@ bool GitManager::autoCommit(const std::string& message) {
 
     std::string output = runGitCommand(cmd.str());
 
-    // Check if commit was successful (output should contain "1 file changed" or similar)
     return !output.empty() && output.find("nothing to commit") == std::string::npos;
 }
 
@@ -142,7 +133,7 @@ std::vector<GitCommitInfo> GitManager::getHistory(const std::string& filename, i
     bool inCommit = false;
 
     while (std::getline(iss, line)) {
-        // Remove trailing whitespace
+
         while (!line.empty() && (line.back() == '\r' || line.back() == '\n' || line.back() == ' ')) {
             line.pop_back();
         }
@@ -151,13 +142,11 @@ std::vector<GitCommitInfo> GitManager::getHistory(const std::string& filename, i
             continue;
         }
 
-        // Check if this is a commit line
         if (line.find('|') != std::string::npos) {
             if (inCommit && !currentCommit.hash.empty()) {
                 history.push_back(currentCommit);
             }
 
-            // Parse commit line: hash|message|date|author
             size_t pos1 = line.find('|');
             size_t pos2 = line.find('|', pos1 + 1);
             size_t pos3 = line.find('|', pos2 + 1);
@@ -165,7 +154,6 @@ std::vector<GitCommitInfo> GitManager::getHistory(const std::string& filename, i
             currentCommit.hash = line.substr(0, pos1);
             currentCommit.message = line.substr(pos1 + 1, pos2 - pos1 - 1);
 
-            // Parse date: "2024-01-15 10:30:45 +0100" -> "2024-01-15 10:30"
             std::string dateStr = line.substr(pos2 + 1, pos3 - pos2 - 1);
             if (dateStr.length() >= 16) {
                 currentCommit.date = dateStr.substr(0, 16);
@@ -177,7 +165,7 @@ std::vector<GitCommitInfo> GitManager::getHistory(const std::string& filename, i
             currentCommit.filesChanged = 0;
             inCommit = true;
         } else if (inCommit && line.find("changed") != std::string::npos) {
-            // Parse shortstat line: " 5 files changed, 123 insertions(+), 45 deletions(-)"
+
             std::istringstream shortstatStream(line);
             int files = 0;
             shortstatStream >> files;
@@ -217,13 +205,13 @@ std::vector<GitDiffLine> GitManager::getDiff(const std::string& filename) const 
 
         GitDiffLine diffLine;
         if (line[0] == '+' && line.substr(0, 3) != "+++") {
-            diffLine.type = 1;  // added
+            diffLine.type = 1;
             diffLine.text = line.substr(1);
         } else if (line[0] == '-' && line.substr(0, 3) != "---") {
-            diffLine.type = -1;  // removed
+            diffLine.type = -1;
             diffLine.text = line.substr(1);
         } else if (line[0] == ' ' || line[0] == '@') {
-            diffLine.type = 0;  // context
+            diffLine.type = 0;
             if (line[0] == '@') {
                 diffLine.text = line;
             } else {
@@ -267,13 +255,13 @@ std::vector<GitDiffLine> GitManager::getDiffBetween(const std::string& commitHas
 
         GitDiffLine diffLine;
         if (line[0] == '+' && line.substr(0, 3) != "+++") {
-            diffLine.type = 1;  // added
+            diffLine.type = 1;
             diffLine.text = line.substr(1);
         } else if (line[0] == '-' && line.substr(0, 3) != "---") {
-            diffLine.type = -1;  // removed
+            diffLine.type = -1;
             diffLine.text = line.substr(1);
         } else if (line[0] == ' ' || line[0] == '@') {
-            diffLine.type = 0;  // context
+            diffLine.type = 0;
             if (line[0] == '@') {
                 diffLine.text = line;
             } else {
@@ -347,4 +335,4 @@ GitManager::RepoStatus GitManager::getStatus() const {
     return status;
 }
 
-} // namespace nodepanda
+}
